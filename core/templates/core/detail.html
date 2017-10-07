@@ -1,0 +1,10 @@
+<h1>{{ audio.filename }}</h1>
+{% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
+<form action="{% url 'uploader:process' audio.id %}" method="post">
+{% csrf_token %}
+	<input type="text" name="bpm" />
+<input type="submit" value="Process" />
+</form>
+<li>BPM: {{ audio.bpm }}</li>
+<li>Published date: {{ audio.pub_date }}</li>
+</ul>

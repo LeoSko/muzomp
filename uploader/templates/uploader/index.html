@@ -1,0 +1,13 @@
+{% load static %}
+<link rel="stylesheet" type="text/css" href="{% static 'style.css'%}" />
+<div id="main">
+	<div class="m-center">
+		<form id="uploadForm" method="post" enctype="multipart/form-data" action="">
+			{% csrf_token %}
+			<label for="file-upload" class="m-custom-file-upload m-blue-button">Select file</label>
+			<input name="audio" id="file-upload" class="hidden" type="file" onchange="setTimeout(function() {document.getElementById('uploadForm').submit()}, 1000)" accept=".mp3"/>
+			<button type="submit" class="hidden">Upload</button>
+		</form>
+	</div>
+</div>
+

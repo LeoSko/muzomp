@@ -1,0 +1,8 @@
+<h1>{{ audio.filename }}</h1>
+
+<ul>
+	<li>New BPM: {{ audio.bpm }}</li>
+	<li>Published: {{ audio.pub_date }}</li>
+</ul>
+
+<a href="{% url 'uploader:detail' audio.id %}">Change again?</a>
