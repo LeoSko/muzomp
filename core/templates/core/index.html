@@ -1,16 +1,28 @@
+{% extends 'core/base.html' %}
+
 {% load static %}
 
-{% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
+{% block includes %}
+    <script src="{% static "js/scripts.js" %}"></script>
+{% endblock includes %}
 
-<link rel="stylesheet" type="text/css" href="{% static 'style.css'%}" />
-<div id="main">
-	<div id="query" class="m-center">
-		<form action="" method="GET">
-			<input class="m-search-bar" type="text" name="q" placeholder="BPM from 80 to 90" value="{{ request.GET.q }}" />
-			<input class="m-blue-button" type="submit" value="Search" />
+{% block body %}
+{% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
+<div class="container-fluid">
+	<div class="row">
+		<form class="form-inline" action="" method="GET">
+		    <div class="input-group">
+		      <input type="text" class="form-control" placeholder="BPM from 80 to 90" value="{{ request.GET.q }}">
+		      <span class="input-group-btn">
+		        <button class="btn btn-secondary" type="button">Search</button>
+		      </span>
+		    </div>
 		</form>
-		<form>
-			<input class="m-blue-button" type="button" onclick="location.href='{% url 'uploader:index' %}';" value="Upload" />
+		<form action="{% url 'uploader:index' %}" method="post" enctype="multipart/form-data">
+			<label class="custom-file">
+			  <input type="file" id="file2" class="custom-file-input">
+			  <span class="custom-file-control"></span>
+			</label>
 		</form>
 	</div>
 	{% if last_pla %}
@@ -30,3 +42,4 @@
 		</ul>
 	{% endif %}
 </div>
+{% endblock body %}

@@ -25,7 +25,7 @@ SECRET_KEY = 't_r00i=80a0w!30fcg1$yqc35p!0&uw&)44j=r8@ca6zwfkd(k'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = [ '82.146.43.157', 'localhost' ]
+ALLOWED_HOSTS = [ '*' ]
 
 
 # Application definition
@@ -39,7 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'django.contrib.staticfiles',
+    'django.contrib.staticfiles'
 ]
 
 MIDDLEWARE = [
@@ -77,11 +77,17 @@ WSGI_APPLICATION = 'sms.wsgi.application'
 # https://docs.djangoproject.com/en/1.11/ref/settings/#databases
 
 DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'sms',
+# 		'USER': 'sms',
+# 		'PASSWORD': 'sms#pass'
+#     }    
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'sms',
-		'USER': 'sms',
-		'PASSWORD': 'sms#pass'
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': 'muzomp',
+		'USER': '',
+		'PASSWORD': ''
     }
 }
 
