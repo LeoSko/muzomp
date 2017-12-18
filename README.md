@@ -1,2 +1,2 @@
-# SMS
-Similar Music Searcher
+# MUZOMP
+MUZic Optimized MultiProcessing
