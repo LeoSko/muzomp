@@ -3,7 +3,7 @@
 {% load static %}
 
 {% block includes %}
-    <script src="{% static "js/scripts.js" %}"></script>
+    <script src="{% static 'js/scripts.js' %}"></script>
 {% endblock includes %}
 
 {% block body %}
@@ -18,7 +18,7 @@
 		      </span>
 		    </div>
 		</form>
-		<form action="{% url 'uploader:index' %}" method="post" enctype="multipart/form-data">
+		<form action="{% url 'core:upload' %}" method="post" enctype="multipart/form-data">
 			<label class="custom-file">
 			  <input type="file" id="file2" class="custom-file-input">
 			  <span class="custom-file-control"></span>
