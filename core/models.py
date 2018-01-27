@@ -50,8 +50,8 @@ class PreLoadedAudio(models.Model):
 
     def get_bpm(self):
         # FIXME
-        path_file = '/opt/muzompmuzomp' + self.file.url
-        tmp = open(path_file, "rb").read()
+        path_file = self.file.url
+        # tmp = open(path_file, "rb").read()
         y, sr = librosa.load(path_file, offset=6, duration=11)
         onset_env = librosa.onset.onset_strength(y, sr=sr)
         tempo = librosa.beat.tempo(onset_envelope=onset_env, sr=sr)

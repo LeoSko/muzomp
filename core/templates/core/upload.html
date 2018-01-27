@@ -1,15 +1,27 @@
 {% extends 'core/base.html' %}
 
 {% block content %}
-<link rel="stylesheet" type="text/css" href="{% static 'style.css'%}" />
-<div id="main">
-	<div class="m-center">
-		<form id="uploadForm" method="post" enctype="multipart/form-data" action="">
-			{% csrf_token %}
-			<label for="file-upload" class="m-custom-file-upload m-blue-button">Select file</label>
-			<input name="audio" id="file-upload" class="hidden" type="file" onchange="setTimeout(function() {document.getElementById('uploadForm').submit()}, 1000)" accept=".mp3"/>
-			<button type="submit" class="hidden">Upload</button>
-		</form>
-	</div>
-</div>
+    <div class="container">
+        <div class="row justify-content-center">
+            <form id="uploadForm" method="post" enctype="multipart/form-data" action="">
+                {% csrf_token %}
+                <div class="input-group mb-3">
+                    <div class="custom-file">
+                        <input name="audio" type="file" class="custom-file-input" id="inputFile"
+                               onchange="setTimeout(function() {document.getElementById('uploadForm').submit()}, 1000)"
+                               accept=".mp3">
+                        <label class="custom-file-label" for="inputFile">Choose file</label>
+                    </div>
+                    <button type="submit" hidden>Upload</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% comment %}<form id="uploadForm" method="post" enctype="multipart/form-data" action="">
+        {% csrf_token %}
+        <label for="file-upload" class="m-custom-file-upload m-blue-button">Select file</label>
+        <input name="audio" id="file-upload" class="hidden" type="file"
+               onchange="setTimeout(function() {document.getElementById('uploadForm').submit()}, 1000)" accept=".mp3"/>
+        <button type="submit" class="hidden">Upload</button>
+    </form>{% endcomment %}
 {% endblock %}

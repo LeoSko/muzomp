@@ -1,45 +1,20 @@
 {% extends 'core/base.html' %}
 
-{% load static %}
-
-{% block includes %}
-    <script src="{% static 'js/scripts.js' %}"></script>
-{% endblock includes %}
-
 {% block body %}
-{% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
-<div class="container-fluid">
-	<div class="row">
-		<form class="form-inline" action="" method="GET">
-		    <div class="input-group">
-		      <input type="text" class="form-control" placeholder="BPM from 80 to 90" value="{{ request.GET.q }}">
-		      <span class="input-group-btn">
-		        <button class="btn btn-secondary" type="button">Search</button>
-		      </span>
-		    </div>
-		</form>
-		<form action="{% url 'core:upload' %}" method="post" enctype="multipart/form-data">
-			<label class="custom-file">
-			  <input type="file" id="file2" class="custom-file-input">
-			  <span class="custom-file-control"></span>
-			</label>
-		</form>
-	</div>
-	{% if last_pla %}
-		<p class="m-p">Queue:<p>
-		<ul class="m-ul">
-		{% for a in last_pla %}
-			<li class="m-ul-li">{{ a.date_uploaded.year }}/{{ a.date_uploaded.month }}/{{ a.date_uploaded.day }} {{ a.date_uploaded.hour }}:{{ a.date_uploaded.minute }}:{{ a.date_uploaded.second }}: {{ a.get_filename }}, {{ a.get_bpm }}</li>
-		{% endfor %}
-		</ul>
-	{% endif %}
-	{% if last_audio %}
-		<p class="m-p">Last added:</p>
-		<ul class="m-ul">
-		{% for a in last_audio %}
-			<li class="m-ul-li">{{ a.date_uploaded.year }}/{{ a.date_uploaded.month }}/{{ a.date_uploaded.day }} {{ a.date_uploaded.hour }}:{{ a.date_uploaded.minute }}:{{ a.date_uploaded.second }}: {{ a.file }}</li>
-		{% endfor %}
-		</ul>
-	{% endif %}
-</div>
+{% if last_pla %}
+    <p class="m-p">Queue:<p>
+    <ul class="m-ul">
+    {% for a in last_pla %}
+        <li class="m-ul-li">{{ a.date_uploaded.year }}/{{ a.date_uploaded.month }}/{{ a.date_uploaded.day }} {{ a.date_uploaded.hour }}:{{ a.date_uploaded.minute }}:{{ a.date_uploaded.second }}: {{ a.get_filename }}, {{ a.get_bpm }}</li>
+    {% endfor %}
+    </ul>
+{% endif %}
+{% if last_audio %}
+    <p class="m-p">Last added:</p>
+    <ul class="m-ul">
+    {% for a in last_audio %}
+        <li class="m-ul-li">{{ a.date_uploaded.year }}/{{ a.date_uploaded.month }}/{{ a.date_uploaded.day }} {{ a.date_uploaded.hour }}:{{ a.date_uploaded.minute }}:{{ a.date_uploaded.second }}: {{ a.file }}</li>
+    {% endfor %}
+    </ul>
+{% endif %}
 {% endblock body %}

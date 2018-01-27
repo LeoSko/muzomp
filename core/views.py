@@ -31,6 +31,11 @@ class QueryView(generic.ListView):
     context_object_name = 'query'
 
 
+class QueueView(generic.ListView):
+    template_name = 'core/queue.html'
+    context_object_name = 'queue'
+
+
 class UploaderView(generic.TemplateView):
     template_name = 'core/upload.html'
 
@@ -45,7 +50,7 @@ class UploaderView(generic.TemplateView):
             pla.delete()
             return HttpResponseRedirect(reverse('core:index'))
         else:
-            return HttpResponseRedirect(reverse('uploader:index'))
+            return HttpResponseRedirect(reverse('core:upload'))
 
 
 class PreLoadedAudioView(generic.DetailView):

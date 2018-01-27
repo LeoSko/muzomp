@@ -2,7 +2,7 @@ from django.conf.urls import include, url
 from django.contrib import admin
 
 urlpatterns = [
-    url(r'^', include('core.urls')),
-    url(r'^statistic/', include('statistic.urls')),
-    url(r'^admin/', admin.site.urls)
+    url('', include('core.urls')),
+    url('statistic/', include('statistic.urls')),
+    url('admin/', admin.site.urls)
 ]
