@@ -10,7 +10,7 @@ from django.utils import timezone
 
 
 class Audio(models.Model):
-    id = models.AutoField(primary_key=True, default=0)
+    id = models.AutoField(primary_key=True)
     file = models.FileField(upload_to='storage/')
     artist = models.CharField(max_length=200, default='Unknown')
     title = models.CharField(max_length=200, default='Unknown')
@@ -18,22 +18,22 @@ class Audio(models.Model):
 
 
 class BPM(models.Model):
-    id = models.AutoField(primary_key=True, default=0)
+    id = models.AutoField(primary_key=True)
     value = models.IntegerField()
-    audio = models.OneToOneField(Audio, on_delete=models.CASCADE)
+    audio = models.OneToOneField(Audio, on_delete=models.DO_NOTHING)
     start_time = models.TimeField()
     duration = models.DurationField()
 
 
 class Query(models.Model):
-    id = models.AutoField(primary_key=True, default=0)
+    id = models.AutoField(primary_key=True)
     date_queued = models.DateTimeField('Date queued', default=timezone.now)
     priority = models.IntegerField()
     query = models.CharField(max_length=4000, default='N/A')
 
 
 class Parameter(models.Model):
-    id = models.AutoField(primary_key=True, default=0)
+    id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=200, default='Unknown')
     description = models.CharField(max_length=4000, default='Please, fill in description field')
 
@@ -62,10 +62,10 @@ class PreLoadedAudio(models.Model):
 
 
 class ProcessQuery(models.Model):
-    id = models.AutoField(primary_key=True, default=0)
-    pla = models.OneToOneField(PreLoadedAudio, on_delete=models.CASCADE)
+    id = models.AutoField(primary_key=True)
+    pla = models.OneToOneField(PreLoadedAudio, on_delete=models.DO_NOTHING)
     priority = models.IntegerField()
     start_time = models.TimeField()
     duration = models.DurationField()
-    parameter = models.OneToOneField(Parameter, on_delete=models.CASCADE)
+    parameter = models.OneToOneField(Parameter, on_delete=models.DO_NOTHING)
     date_queued = models.DateTimeField('Date queued', default=timezone.now)
