@@ -8,7 +8,7 @@
                 <div class="input-group mb-3">
                     <div class="custom-file">
                         <input name="audio" type="file" class="custom-file-input" id="inputFile"
-                               onchange="setTimeout(function() {document.getElementById('uploadForm').submit()}, 1000)"
+                               onchange="$('#uploadForm').submit()"
                                accept=".mp3">
                         <label class="custom-file-label" for="inputFile">Choose file</label>
                     </div>
