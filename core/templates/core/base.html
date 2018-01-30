@@ -21,8 +21,7 @@
             integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl"
             crossorigin="anonymous"></script>
     <link rel="stylesheet" href="{% static 'css/styles.css' %}">
-    {% block includes %}
-    {% endblock %}
+    {% block includes %}{% endblock %}
 </head>
 <body>
     {% block header %}
@@ -55,12 +54,9 @@
         </div>
     </nav>
     {% endblock %}
-
     {% if error_message %}
         <p><strong>{{ error_message }}</strong></p>
     {% endif %}
-
-    {% block content %}
-    {% endblock %}
+    {% block content %}{% endblock %}
 </body>
 </html>

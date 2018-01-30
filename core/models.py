@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import datetime
 from os import path
 
 import librosa
@@ -16,12 +17,26 @@ class Audio(models.Model):
     title = models.CharField(max_length=200, default='Unknown')
     date_uploaded = models.DateTimeField('Date uploaded', default=timezone.now)
 
+    def get_filename(self):
+        return path.basename(self.file.url)
+
 
 class BPM(models.Model):
+    """
+    BPM (beats per minute)
+
+    Parameters
+    -------------
+    id : django.models.AutoField
+        Auto-incremented id
+
+    value : int > 0
+        Actual value of object
+    """
     id = models.AutoField(primary_key=True)
     value = models.IntegerField()
     audio = models.OneToOneField(Audio, on_delete=models.DO_NOTHING)
-    start_time = models.TimeField()
+    start_time = models.IntegerField()
     duration = models.DurationField()
 
 
@@ -52,13 +67,14 @@ class PreLoadedAudio(models.Model):
         # FIXME
         path_file = self.file.url
         # tmp = open(path_file, "rb").read()
-        y, sr = librosa.load(path_file, offset=6, duration=11)
+        # y, sr = librosa.load(path_file, offset=6, duration=11)
+        y, sr = librosa.load(path_file)
         onset_env = librosa.onset.onset_strength(y, sr=sr)
         tempo = librosa.beat.tempo(onset_envelope=onset_env, sr=sr)
         return np.round(tempo, 1)
 
     def get_duration(self):
-        return librosa.get_duration(filename=self.file.url)
+        return datetime.timedelta(seconds=librosa.get_duration(filename=self.file.url))
 
 
 class ProcessQuery(models.Model):

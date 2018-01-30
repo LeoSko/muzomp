@@ -3,3 +3,4 @@ librosa
 numpy
 psutil
 psycopg2
+celery
