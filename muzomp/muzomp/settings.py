@@ -1,14 +1,12 @@
 import os
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
 SECRET_KEY = 't_r00i=80a0w!30fcg1$yqc35p!0&uw&)44j=r8@ca6zwfkd(k'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = TEMPLATE_DEBUG = True
-
-PROJECT_DIR = os.path.abspath(os.path.dirname(__file__))
 
 ALLOWED_HOSTS = ['*']
 
@@ -24,6 +22,10 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles'
 ]
+
+CELERY_IMPORTS = (
+    'core.tasks',
+)
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -67,7 +69,7 @@ DATABASES = {
     #     }
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(PROJECT_DIR, '../muzomp.db'),
+        'NAME': os.path.join(BASE_DIR, 'muzomp.db'),
         'USER': '',
         'PASSWORD': ''
     }

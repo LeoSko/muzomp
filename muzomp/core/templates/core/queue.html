@@ -1,5 +1,13 @@
 {% extends 'core/base.html' %}
 
 {% block content %}
-
+    {{ tasks_info }}
+{% if queries %}
+    <p>Queries queue:</p>
+    <ol>
+        {% for query in queries %}
+            <li>[{{ query.date_queued }}]: {{ query.pla.get_filename }}</li>
+        {% endfor %}
+    </ol>
+{% endif %}
 {% endblock content %}

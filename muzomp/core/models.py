@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
-
 import datetime
+import urllib
 from os import path
 
 import librosa
-import numpy as np
 from django.db import models
 from django.utils import timezone
 
@@ -16,9 +15,25 @@ class Audio(models.Model):
     artist = models.CharField(max_length=200, default='Unknown')
     title = models.CharField(max_length=200, default='Unknown')
     date_uploaded = models.DateTimeField('Date uploaded', default=timezone.now)
+    status = models.CharField(max_length=200, default='Uploaded')
+    tasks_scheduled = models.IntegerField(default=0)
+    tasks_processed = models.IntegerField(default=0)
+
+    def get_duration(self):
+        return datetime.timedelta(seconds=librosa.get_duration(filename=urllib.parse.unquote(self.file.url)))
 
     def get_filename(self):
         return path.basename(self.file.url)
+
+    def update_status(self):
+        if self.tasks_scheduled == self.tasks_processed:
+            self.status = 'Processed'
+        elif self.tasks_processed > 0:
+            self.status = str(self.tasks_processed / self.tasks_scheduled * 100)
+
+    def increase_processed_tasks(self):
+        self.tasks_processed = self.tasks_processed + 1
+        self.update_status()
 
 
 class BPM(models.Model):
@@ -35,53 +50,15 @@ class BPM(models.Model):
     """
     id = models.AutoField(primary_key=True)
     value = models.IntegerField()
-    audio = models.OneToOneField(Audio, on_delete=models.DO_NOTHING)
+    audio = models.ForeignKey(Audio, on_delete=models.DO_NOTHING)
     start_time = models.IntegerField()
     duration = models.DurationField()
 
+    def get_starttime_formatted(self):
+        return datetime.timedelta(seconds=self.start_time)
 
-class Query(models.Model):
-    id = models.AutoField(primary_key=True)
-    date_queued = models.DateTimeField('Date queued', default=timezone.now)
-    priority = models.IntegerField()
-    query = models.CharField(max_length=4000, default='N/A')
+    def get_endtime(self):
+        return self.start_time + self.duration.seconds
 
-
-class Parameter(models.Model):
-    id = models.AutoField(primary_key=True)
-    name = models.CharField(max_length=200, default='Unknown')
-    description = models.CharField(max_length=4000, default='Please, fill in description field')
-
-
-class PreLoadedAudio(models.Model):
-    id = models.AutoField(primary_key=True)
-    file = models.FileField(upload_to='not_processed/')
-    priority = models.IntegerField(default=0)
-    date_uploaded = models.DateTimeField('Date uploaded', default=timezone.now)
-    status = models.CharField(max_length=200, default='Ready to process')
-
-    def get_filename(self):
-        return path.basename(self.file.url)
-
-    def get_bpm(self):
-        # FIXME
-        path_file = self.file.url
-        # tmp = open(path_file, "rb").read()
-        # y, sr = librosa.load(path_file, offset=6, duration=11)
-        y, sr = librosa.load(path_file)
-        onset_env = librosa.onset.onset_strength(y, sr=sr)
-        tempo = librosa.beat.tempo(onset_envelope=onset_env, sr=sr)
-        return np.round(tempo, 1)
-
-    def get_duration(self):
-        return datetime.timedelta(seconds=librosa.get_duration(filename=self.file.url))
-
-
-class ProcessQuery(models.Model):
-    id = models.AutoField(primary_key=True)
-    pla = models.OneToOneField(PreLoadedAudio, on_delete=models.DO_NOTHING)
-    priority = models.IntegerField()
-    start_time = models.TimeField()
-    duration = models.DurationField()
-    parameter = models.OneToOneField(Parameter, on_delete=models.DO_NOTHING)
-    date_queued = models.DateTimeField('Date queued', default=timezone.now)
+    def get_endtime_formatted(self):
+        return datetime.timedelta(seconds=self.get_endtime())

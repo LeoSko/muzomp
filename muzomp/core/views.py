@@ -1,8 +1,11 @@
 from django.http import HttpResponseRedirect
 from django.urls import reverse
+from django.utils import timezone
 from django.views import generic
 
-from .models import Audio, PreLoadedAudio, BPM
+import tasks
+from .models import Audio, BPM
+from celery import app
 
 
 class IndexView(generic.TemplateView):
@@ -10,9 +13,9 @@ class IndexView(generic.TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['last_pla'] = PreLoadedAudio.objects.order_by('date_uploaded').reverse()[:10]
-        context['last_audio'] = Audio.objects.order_by('date_uploaded').reverse()[:10]
-        context['last_bpm'] = BPM.objects.order_by('id').reverse()[:10]
+        context['queue'] = Audio.objects.exclude(status__startswith='Proc').order_by('status')[:10]
+        context['audio'] = Audio.objects.filter(status__exact='Processed').order_by('date_uploaded')[:10]
+        context['bpm'] = BPM.objects.order_by('id').reverse()[:10]
         return context
 
 
@@ -21,19 +24,17 @@ class AudioView(generic.DetailView):
     context_object_name = 'audio'
 
 
-class ProcessQueryView(generic.ListView):
-    template_name = 'core/processquerylist.html'
-    context_object_name = 'queries'
-
-
-class QueryView(generic.ListView):
-    template_name = 'core/query.html'
-    context_object_name = 'query'
-
-
-class QueueView(generic.ListView):
+class QueueView(generic.TemplateView):
     template_name = 'core/queue.html'
-    context_object_name = 'queue'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['tasks_info'] = app.tasks
+        return context
+
+
+class QueryView(generic.TemplateView):
+    template_name = 'core/query.html'
 
 
 class UploaderView(generic.TemplateView):
@@ -41,20 +42,18 @@ class UploaderView(generic.TemplateView):
 
     def post(self, request, *args, **kwargs):
         if request.FILES:
-            pla = PreLoadedAudio.objects.create(file=request.FILES['audio'])
-            pla.save()
-            a = Audio.objects.create(file=pla.file)
+            a = Audio.objects.create(file=request.FILES['audio'])
             a.save()
-            bpm = BPM.objects.create(audio=a, start_time=0, duration=pla.get_duration(), value=pla.get_bpm())
-            bpm.save()
-            pla.delete()
+            duration = a.get_duration().seconds
+            subtime = 15
+            start_time = 0
+            a.tasks_scheduled = duration // subtime
+            a.save()
+            while start_time < duration - subtime * 2:
+                tasks.process.delay(a.id, start_time, subtime, 'BPM')
+                start_time = start_time + subtime
+            tasks.process.delay(a.id, start_time, duration - (subtime * (a.tasks_scheduled - 1)), 'BPM')
             return HttpResponseRedirect(reverse('core:index'))
         else:
             return HttpResponseRedirect(reverse('core:upload'))
 
-
-class PreLoadedAudioView(generic.DetailView):
-    template_name = 'pla.html'
-    context_object_name = 'pla'
-
-# TODO look for file in DB

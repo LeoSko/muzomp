@@ -1,27 +1,27 @@
 {% extends 'core/base.html' %}
 
 {% block content %}
-{% if last_pla %}
+{% if queue %}
     <p class="m-p">Queue:<p>
     <ul class="m-ul">
-    {% for a in last_pla %}
-        <li class="m-ul-li">{{ a.date_uploaded.year }}/{{ a.date_uploaded.month }}/{{ a.date_uploaded.day }} {{ a.date_uploaded.hour }}:{{ a.date_uploaded.minute }}:{{ a.date_uploaded.second }}: {{ a.get_filename }}, {{ a.get_bpm }}</li>
+    {% for q in queue %}
+        <li class="m-ul-li">{{ q.date_uploaded.year }}/{{ q.date_uploaded.month }}/{{ q.date_uploaded.day }} {{ q.date_uploaded.hour }}:{{ q.date_uploaded.minute }}:{{ q.date_uploaded.second }}: {{ q.get_filename }} [{{ q.status|floatformat:"0" }} %]</li>
     {% endfor %}
     </ul>
 {% endif %}
-{% if last_audio %}
+{% if audio %}
     <p class="m-p">Last added:</p>
     <ul class="m-ul">
-    {% for a in last_audio %}
+    {% for a in audio %}
         <li class="m-ul-li">{{ a.date_uploaded.year }}/{{ a.date_uploaded.month }}/{{ a.date_uploaded.day }} {{ a.date_uploaded.hour }}:{{ a.date_uploaded.minute }}:{{ a.date_uploaded.second }}: {{ a.get_filename }}</li>
     {% endfor %}
     </ul>
 {% endif %}
-{% if last_bpm %}
+{% if bpm %}
     <p class="m-p">Last BPM:</p>
     <ul class="m-ul">
-    {% for bpm in last_bpm %}
-        <li class="m-ul-li">{{ bpm.audio.date_uploaded.year }}/{{ bpm.audio.date_uploaded.month }}/{{ bpm.audio.date_uploaded.day }} {{ bpm.audio.date_uploaded.hour }}:{{ bpm.audio.date_uploaded.minute }}:{{ bpm.audio.date_uploaded.second }}: {{ bpm.audio.get_filename }} - {{ bpm.value }} BPM</li>
+    {% for bpm in bpm %}
+        <li class="m-ul-li">{{ bpm.audio.date_uploaded.year }}/{{ bpm.audio.date_uploaded.month }}/{{ bpm.audio.date_uploaded.day }} {{ bpm.audio.date_uploaded.hour }}:{{ bpm.audio.date_uploaded.minute }}:{{ bpm.audio.date_uploaded.second }}: {{ bpm.audio.get_filename }} [{{ bpm.get_starttime_formatted }} - {{ bpm.get_endtime_formatted }}] - {{ bpm.value }} BPM</li>
     {% endfor %}
     </ul>
 {% endif %}
