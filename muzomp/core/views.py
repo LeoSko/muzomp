@@ -1,9 +1,8 @@
 from django.http import HttpResponseRedirect
 from django.urls import reverse
-from django.utils import timezone
 from django.views import generic
 
-import tasks
+from core import tasks
 from .models import Audio, BPM
 from celery import app
 
@@ -13,8 +12,9 @@ class IndexView(generic.TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['queue'] = Audio.objects.exclude(status__startswith='Proc').order_by('status')[:10]
-        context['audio'] = Audio.objects.filter(status__exact='Processed').order_by('date_uploaded')[:10]
+        context['queue'] = Audio.objects.filter(status=Audio.IN_QUEUE).order_by('date_uploaded')[:10]
+        context['processing'] = Audio.objects.filter(status=Audio.PROCESSING).order_by('date_uploaded')[:10]
+        context['audio'] = Audio.objects.filter(status=Audio.PROCESSED).order_by('date_uploaded')[:10]
         context['bpm'] = BPM.objects.order_by('id').reverse()[:10]
         return context
 

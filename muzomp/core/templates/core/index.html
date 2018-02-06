@@ -5,7 +5,15 @@
     <p class="m-p">Queue:<p>
     <ul class="m-ul">
     {% for q in queue %}
-        <li class="m-ul-li">{{ q.date_uploaded.year }}/{{ q.date_uploaded.month }}/{{ q.date_uploaded.day }} {{ q.date_uploaded.hour }}:{{ q.date_uploaded.minute }}:{{ q.date_uploaded.second }}: {{ q.get_filename }} [{{ q.status|floatformat:"0" }} %]</li>
+        <li class="m-ul-li">{{ q.date_uploaded.year }}/{{ q.date_uploaded.month }}/{{ q.date_uploaded.day }} {{ q.date_uploaded.hour }}:{{ q.date_uploaded.minute }}:{{ q.date_uploaded.second }}: {{ q.get_filename }}</li>
+    {% endfor %}
+    </ul>
+{% endif %}
+{% if processing %}
+    <p class="m-p">Processing:<p>
+    <ul class="m-ul">
+    {% for p in processing %}
+        <li class="m-ul-li">{{ p.date_uploaded.year }}/{{ p.date_uploaded.month }}/{{ p.date_uploaded.day }} {{ p.date_uploaded.hour }}:{{ p.date_uploaded.minute }}:{{ p.date_uploaded.second }}: {{ p.get_filename }} [{{ p.tasks_processed }} of {{ p.tasks_scheduled }}]</li>
     {% endfor %}
     </ul>
 {% endif %}

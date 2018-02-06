@@ -10,13 +10,22 @@ from django.utils import timezone
 
 
 class Audio(models.Model):
+    IN_QUEUE = 0
+    PROCESSING = 1
+    PROCESSED = 2
+    STATUS_CHOICES = (
+        (IN_QUEUE, 'In queue'),
+        (PROCESSING, 'Processing'),
+        (PROCESSED, 'Processed'),
+    )
+
     id = models.AutoField(primary_key=True)
     file = models.FileField(upload_to='storage/')
     artist = models.CharField(max_length=200, default='Unknown')
     title = models.CharField(max_length=200, default='Unknown')
     date_uploaded = models.DateTimeField('Date uploaded', default=timezone.now)
-    status = models.CharField(max_length=200, default='Uploaded')
-    tasks_scheduled = models.IntegerField(default=0)
+    status = models.IntegerField(default=IN_QUEUE)
+    tasks_scheduled = models.IntegerField(default=-1)
     tasks_processed = models.IntegerField(default=0)
 
     def get_duration(self):
@@ -27,9 +36,9 @@ class Audio(models.Model):
 
     def update_status(self):
         if self.tasks_scheduled == self.tasks_processed:
-            self.status = 'Processed'
+            self.status = Audio.PROCESSED
         elif self.tasks_processed > 0:
-            self.status = str(self.tasks_processed / self.tasks_scheduled * 100)
+            self.status = Audio.PROCESSING
 
     def increase_processed_tasks(self):
         self.tasks_processed = self.tasks_processed + 1
