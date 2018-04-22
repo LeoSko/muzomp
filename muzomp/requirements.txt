@@ -4,5 +4,6 @@ numpy
 psutil
 psycopg2
 celery
+redis
 # For running celery in Windows you will need eventlet, thanks to https://github.com/celery/celery/issues/4178
 eventlet

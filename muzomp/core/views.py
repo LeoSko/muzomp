@@ -1,10 +1,10 @@
+import rabbitpy as rabbitpy
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.views import generic
 
 from core import tasks
 from .models import Audio, BPM
-from celery import app
 
 
 class IndexView(generic.TemplateView):
@@ -29,7 +29,11 @@ class QueueView(generic.TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['tasks_info'] = app.tasks
+        context['tasks_info'] = ''
+        with rabbitpy.Connection('amqp://muzomp:muzomp@localhost:5672') as conn:
+            with conn.channel() as channel:
+                for message in rabbitpy.Queue(channel, 'celery '):
+                    context['tasks_info'] += str(message)
         return context
 
 

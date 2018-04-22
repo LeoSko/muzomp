@@ -26,6 +26,8 @@ def process(audio_id, start_time, duration, parameter):
     if parameter == 'BPM':
         y, sr = librosa.load(a.file.url)
         onset_env = librosa.onset.onset_strength(y, sr=sr)
+        y = 0
+        sr = 0
         tempo = librosa.beat.tempo(onset_envelope=onset_env, sr=sr)
         val = np.round(tempo, 1)
 
