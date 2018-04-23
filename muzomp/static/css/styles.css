@@ -2,3 +2,6 @@
 	width: 560px;
 	min-width: 200px;
 }
+.progress {
+	height: 5px;
+}

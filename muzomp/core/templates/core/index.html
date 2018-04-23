@@ -1,36 +1,57 @@
 {% extends 'core/base.html' %}
-
+{% load mathfilters %}
 {% block content %}
-{% if queue %}
-    <p class="m-p">Queue:<p>
-    <ul class="m-ul">
-    {% for q in queue %}
-        <li class="m-ul-li">{{ q.date_uploaded.year }}/{{ q.date_uploaded.month }}/{{ q.date_uploaded.day }} {{ q.date_uploaded.hour }}:{{ q.date_uploaded.minute }}:{{ q.date_uploaded.second }}: {{ q.get_filename }}</li>
-    {% endfor %}
-    </ul>
-{% endif %}
-{% if processing %}
-    <p class="m-p">Processing:<p>
-    <ul class="m-ul">
-    {% for p in processing %}
-        <li class="m-ul-li">{{ p.date_uploaded.year }}/{{ p.date_uploaded.month }}/{{ p.date_uploaded.day }} {{ p.date_uploaded.hour }}:{{ p.date_uploaded.minute }}:{{ p.date_uploaded.second }}: {{ p.get_filename }} [{{ p.tasks_processed }} of {{ p.tasks_scheduled }}]</li>
-    {% endfor %}
-    </ul>
-{% endif %}
-{% if audio %}
-    <p class="m-p">Last added:</p>
-    <ul class="m-ul">
-    {% for a in audio %}
-        <li class="m-ul-li">{{ a.date_uploaded.year }}/{{ a.date_uploaded.month }}/{{ a.date_uploaded.day }} {{ a.date_uploaded.hour }}:{{ a.date_uploaded.minute }}:{{ a.date_uploaded.second }}: {{ a.get_filename }}</li>
-    {% endfor %}
-    </ul>
-{% endif %}
-{% if bpm %}
-    <p class="m-p">Last BPM:</p>
-    <ul class="m-ul">
-    {% for bpm in bpm %}
-        <li class="m-ul-li">{{ bpm.audio.date_uploaded.year }}/{{ bpm.audio.date_uploaded.month }}/{{ bpm.audio.date_uploaded.day }} {{ bpm.audio.date_uploaded.hour }}:{{ bpm.audio.date_uploaded.minute }}:{{ bpm.audio.date_uploaded.second }}: {{ bpm.audio.get_filename }} [{{ bpm.get_starttime_formatted }} - {{ bpm.get_endtime_formatted }}] - {{ bpm.value }} BPM</li>
-    {% endfor %}
-    </ul>
-{% endif %}
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-6">
+                <p class="m-p">Queue:<p>
+                {% if queue %}
+                <ul class="m-ul">
+                {% for q in queue %}
+                    <li class="m-ul-li">{{ q.date_uploaded|date:"Y-m-d H:i:s"  }}: {{ q.get_filename }}</li>
+                {% endfor %}
+                </ul>
+                {% else %}
+                <p class="m-p">Empty!</p>
+                {% endif %}
+            </div>
+            <div class="col-6">
+                <p class="m-p">Processing:<p>
+                {% if processing %}
+                    <ul class="m-ul">
+                    {% for p in processing %}
+                        <li class="m-ul-li">{{ p.date_uploaded|date:"Y-m-d H:i:s"  }}: {{ p.get_filename }} [{{ p.tasks_processed }} of {{ p.tasks_scheduled }}]</li>
+                        <div class="progress">
+                          <div class="progress-bar" role="progressbar" style="width: {{ p.tasks_processed|div:p.tasks_scheduled|mul:100 }}%" aria-valuenow="75" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    {% endfor %}
+                    </ul>
+                {% else %}
+                <p class="m-p">Empty!</p>
+                {% endif %}
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-6">
+            {% if audio %}
+                <p class="m-p">Last added:</p>
+                <ul class="m-ul">
+                {% for a in audio %}
+                    <li class="m-ul-li">{{ a.date_uploaded|date:"Y-m-d H:i:s" }}: {{ a.get_filename }}</li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+            </div>
+            <div class="col-6">
+            {% if bpm %}
+                <p class="m-p">Last BPM:</p>
+                <ul class="m-ul">
+                {% for bpm in bpm %}
+                    <li class="m-ul-li">{{ bpm.audio.date_uploaded|date:"Y-m-d H:i:s" }}: {{ bpm.audio.get_filename }} [{{ bpm.get_starttime_formatted }} - {{ bpm.get_endtime_formatted }}] - {{ bpm.value }} BPM</li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+            </div>
+        </div>
+    </div>
 {% endblock content %}
