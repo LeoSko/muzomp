@@ -6,7 +6,7 @@ from urllib.parse import unquote
 
 import librosa
 import numpy as np
-from celery import shared_task
+from celery.decorators import task
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 
@@ -18,7 +18,7 @@ UNKNOWN_PARAMETER_ERROR_CODE = -1
 WRONG_ARRAY_LENGTH = -2
 
 
-@shared_task(name='core.tasks.process')
+@task(name='core.tasks.process')
 def process(audio_id, start_time, duration, parameter):
     try:
         a = Audio.objects.get(id=audio_id)
@@ -43,7 +43,7 @@ def process(audio_id, start_time, duration, parameter):
     return UNKNOWN_PARAMETER_ERROR_CODE
 
 
-@shared_task(name='core.tasks.merge')
+@task(name='core.tasks.merge')
 def merge(audio_id, parameter):
     try:
         a = Audio.objects.get(id=audio_id)
@@ -53,13 +53,14 @@ def merge(audio_id, parameter):
         bpms = BPM.objects.filter(audio=a).order_by('start_time')
         if bpms.count() < 2:
             return WRONG_ARRAY_LENGTH
-        i = 1
-        while i < bpms.count():
-            if bpms[i].value == bpms[i - 1].value:
-                bpms[i - 1].duration += bpms[i].duration
-                bpms[i - 1].save()
-                bpms[i].delete()
-                i -= 1
-            i += 1
+        new_bpms = [bpms[0]]
+        for old_bpm in bpms:
+            if old_bpm.value == new_bpms[-1].value:
+                new_bpms[-1].duration += old_bpm.duration
+            else:
+                new_bpms.append(old_bpm)
+            old_bpm.delete()
+        for new_bpm in new_bpms:
+            new_bpm.save()
         return SUCCESS_CODE
     return UNKNOWN_PARAMETER_ERROR_CODE
