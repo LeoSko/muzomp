@@ -1,7 +1,6 @@
 # Create your tasks here
 from __future__ import absolute_import, unicode_literals
 
-from datetime import timedelta
 from urllib.parse import unquote
 
 import librosa
@@ -18,29 +17,24 @@ UNKNOWN_PARAMETER_ERROR_CODE = -1
 WRONG_ARRAY_LENGTH = -2
 
 
-@task(name='core.tasks.process')
-def process(audio_id, start_time, duration, parameter):
-    try:
-        a = Audio.objects.get(id=audio_id)
-    except ObjectDoesNotExist:
-        return OBJECT_DOES_NOT_EXIST_ERROR_CODE
-    if parameter == 'BPM':
-        y, sr = librosa.load(unquote(a.file.url))
-        onset_env = librosa.onset.onset_strength(y, sr=sr)
-        tempo = librosa.beat.tempo(onset_envelope=onset_env, sr=sr)
-        val = np.round(tempo, 1)
-
-        bpm = BPM.objects.create(audio=a, start_time=start_time, duration=timedelta(seconds=duration), value=val)
-        bpm.save()
-        with transaction.atomic():
-            a.refresh_from_db()
-            a.increase_processed_tasks()
-            a.save()
-            if a.status == Audio.PROCESSED:
-                merge.delay(audio_id, parameter)
+@task(name='core.tasks.process_bpm')
+def process_bpm(task_id):
+    bpm = BPM.objects.get(id=task_id)
+    if bpm.status == BPM.PROCESSED:
         return SUCCESS_CODE
+    bpm.status = BPM.PROCESSING
+    bpm.save()
+    y, sr = librosa.load(unquote(bpm.a.file.url), offset=bpm.start_time)
+    onset_env = librosa.onset.onset_strength(y, sr=sr)
+    tempo = librosa.beat.tempo(onset_envelope=onset_env, sr=sr)
+    bpm.value = np.round(tempo, 1)
+    bpm.a.increase_processed_tasks()
+    bpm.status = BPM.PROCESSED
+    bpm.save()
 
-    return UNKNOWN_PARAMETER_ERROR_CODE
+    if bpm.a.status == Audio.PROCESSED:
+        merge.delay(bpm.a.audio_id, 'BPM')
+    return SUCCESS_CODE
 
 
 @task(name='core.tasks.merge')

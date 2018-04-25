@@ -57,11 +57,21 @@ class BPM(models.Model):
     value : int > 0
         Actual value of object
     """
+    IN_QUEUE = 0
+    PROCESSING = 1
+    PROCESSED = 2
+    STATUS_CHOICES = (
+        (IN_QUEUE, 'In queue'),
+        (PROCESSING, 'Processing'),
+        (PROCESSED, 'Processed'),
+    )
+
     id = models.AutoField(primary_key=True)
-    value = models.IntegerField()
+    value = models.IntegerField(default=-1)
     audio = models.ForeignKey(Audio, on_delete=models.DO_NOTHING)
     start_time = models.IntegerField()
     duration = models.DurationField()
+    status = models.IntegerField(default=IN_QUEUE)
 
     def get_starttime_formatted(self):
         return datetime.timedelta(seconds=self.start_time)

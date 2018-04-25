@@ -1,0 +1,75 @@
+{% extends 'core/base.html' %}
+{% load filters %}
+{% block content %}
+    <div class="container-fluid">
+        <div class="container">
+            <div class="row">
+                <div class="col">
+                    Disk usage: {{ disk_free_space }} free out of {{ disk_total_space }} ({{ disk_usage }}% taken)
+                    <div class="progress">
+                      <div class="progress-bar {% if disk_usage > 90.0 %}bg-danger{% elif disk_usage > 75 %}bg-warning{% elif disk_usage > 50 %}bg-info{% else %}bg-success{% endif %}" role="progressbar" style="width: {{ disk_usage|floatformat:"0" }}%" aria-valuenow="{{ disk_usage|floatformat:"0" }}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                </div>
+                <div class="col">
+                    Datetime: <span class="badge badge-info">{% now "jS F Y H:i" %}</span>
+                </div>
+                <div class="col">
+                    Tracks count: <span class="badge badge-info">{{ tracks_count }}</span>
+                </div>
+                <div class="col">CPU usage:
+                    {% for cpu in cpu_usage %}
+                        <div class="row">
+                            <div class="col">{{ cpu }}</div>
+                            <div class="col">
+                                <div class="progress">
+                                  <div class="progress-bar {% if cpu > 90.0 %}bg-danger{% elif cpu > 75 %}bg-warning{% elif cpu > 50 %}bg-info{% else %}bg-success{% endif %}" role="progressbar" style="width: {{ cpu|floatformat:"0" }}%" aria-valuenow="{{ cpu|floatformat:"0" }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <div class="container">
+            <div class="row">
+                <div class="col">
+                    <p class="m-p">Queue:</p>
+                    {% if queue %}
+                    <ul class="list-group">
+                    {% for q in queue %}
+                        <li class="list-group-item list-group-item-action">
+                            <div class="row">
+                                <div class="col col-datetime">{{ q.date_uploaded|date:"Y-m-d H:i:s"  }}</div>
+                                <div class="col">{{ q.get_filename|unquote|truncatechars:50 }}</div>
+                            </div>
+                        </li>
+                    {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="m-p">Empty!</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="container">
+            <p class="m-p">Processing:</p>
+            {% if processing %}
+                <ul class="list-group">
+                {% for p in processing %}
+                    <li class="list-group-item list-group-item-action list-group-item-primary">
+                        <div class="row">
+                            <div class="col col-datetime">{{ p.date_uploaded|date:"Y-m-d H:i:s"  }}</div>
+                            <div class="col col-filename">{{ p.get_filename|unquote|truncatechars:50 }}</div>
+                            <div class="col col-progress">{{ p.tasks_processed }} of {{ p.tasks_scheduled }}</div>
+                        </div>
+                    </li>
+                    <div class="progress">
+                      <div class="progress-bar" role="progressbar" style="width: {{ p.tasks_processed|div:p.tasks_scheduled|mul:100|floatformat:"0" }}%" aria-valuenow="75" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                {% endfor %}
+                </ul>
+            {% else %}
+            <p class="m-p">Empty!</p>
+            {% endif %}</div>
+        </div>
+{% endblock content %}
