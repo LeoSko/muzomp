@@ -18,13 +18,17 @@ class IndexView(generic.TemplateView):
         context['queue'] = Audio.objects.filter(status=Audio.IN_QUEUE).order_by('date_uploaded')[:10]
         context['processing'] = Audio.objects.filter(status=Audio.PROCESSING).order_by('date_uploaded')[:10]
         context['audio'] = Audio.objects.filter(status=Audio.PROCESSED).order_by('date_uploaded')[:10]
-        context['bpm'] = BPM.objects.filter(status=BPM.PROCESSED).order_by('id').reverse()[:10]
         return context
 
 
-class AudioView(generic.DetailView):
+class AudioView(generic.TemplateView):
     template_name = 'core/audio.html'
-    context_object_name = 'audio'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['a'] = Audio.objects.get(id=kwargs['id'])
+        context['bpms'] = BPM.objects.filter(audio=context['a'])
+        return context
 
 
 class QueueView(generic.TemplateView):
@@ -32,11 +36,8 @@ class QueueView(generic.TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['tasks_info'] = ''
-        with rabbitpy.Connection('amqp://muzomp:muzomp@localhost:5672') as conn:
-            with conn.channel() as channel:
-                for message in rabbitpy.Queue(channel, 'celery '):
-                    context['tasks_info'] += str(message)
+        context['bpm'] = BPM.objects.filter(status=BPM.IN_QUEUE).order_by('id').reverse()[:50]
+        context['audio'] = Audio.objects.filter(status=Audio.IN_QUEUE).order_by('id').reverse()[:50]
         return context
 
 
@@ -51,18 +52,18 @@ class UploaderView(generic.TemplateView):
         if request.FILES:
             a = Audio.objects.create(file=request.FILES['audio'])
             a.save()
-            duration = a.get_duration().seconds
-            subtime = 15
+            duration = a.get_duration().total_seconds()
+            subtime = 15.0
             start_time = 0
             a.tasks_scheduled = duration // subtime
             a.save()
             while start_time < duration - subtime * 2:
-                bpm = BPM.objects.create(audio=a, start_time=start_time, duration=timedelta(subtime), value=-1)
+                bpm = BPM.objects.create(audio=a, start_time=start_time, duration=timedelta(seconds=subtime))
                 bpm.save()
                 tasks.process_bpm.delay(bpm.id)
                 start_time = start_time + subtime
             bpm = BPM.objects.create(audio=a, start_time=start_time,
-                                     duration=timedelta(duration - (subtime * (a.tasks_scheduled - 1))), value=-1)
+                                     duration=timedelta(seconds=duration - (subtime * (a.tasks_scheduled - 1))))
             bpm.save()
             tasks.process_bpm.delay(bpm.id)
             return HttpResponseRedirect(reverse('core:index'))

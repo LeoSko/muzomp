@@ -1,13 +1,49 @@
 {% extends 'core/base.html' %}
-
+{% load mathfilters %}
+{% load filters %}
 {% block content %}
-    {{ tasks_info }}
-{% if queries %}
-    <p>Queries queue:</p>
-    <ol>
-        {% for query in queries %}
-            <li>[{{ query.date_queued }}]: {{ query.pla.get_filename }}</li>
-        {% endfor %}
-    </ol>
-{% endif %}
+    <div class="container">
+        <div class="row">
+            <div class="col-6 p-3">
+                <p class="m-p">In Queue audio:</p>
+                {% if bpm %}
+                <ul class="list-group">
+                    {% for audio in audio %}
+                    <li class="list-group-item list-group-item-action list-group-item-success">
+                        <div class="row">
+                            <div class="col col-datetime">{{ audio.date_uploaded|date:"Y-m-d H:i:s" }}</div>
+                            <div class="col">{{ audio.get_filename|unquote|truncatechars:50 }}</div>
+                                <div class="col col-progress">{{ audio.tasks_processed }} of {{ audio.tasks_scheduled }}</div>
+                            </div>
+                            <div class="progress">
+                              <div class="progress-bar" role="progressbar" style="width: {{ audio.tasks_processed|div:audio.tasks_scheduled|mul:100|floatformat:"0" }}%" aria-valuenow="{{ audio.tasks_processed|div:audio.tasks_scheduled|mul:100|floatformat:"0" }}" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="m-p">Empty!</p>
+                {% endif %}
+            </div>
+            <div class="col-6 p-3">
+                <p class="m-p">In Queue BPM:</p>
+                {% if bpm %}
+                <ul class="list-group">
+                    {% for bpm in bpm %}
+                    <li class="list-group-item list-group-item-action list-group-item-success">
+                        <div class="row">
+                            <div class="col col-datetime">{{ bpm.audio.date_uploaded|date:"Y-m-d H:i:s" }}</div>
+                            <div class="col">{{ bpm.audio.get_filename|unquote|truncatechars:50 }}</div>
+                            <div class="col col-time pull-right">{{ bpm.start|duration:"h:i:s" }}</div>
+                            <div class="col col-time pull-right">{{ bpm.end|duration:"h:i:s" }}</div>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="m-p">Empty!</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
 {% endblock content %}

@@ -8,5 +8,6 @@ urlpatterns = [
     url('queue/', views.QueueView.as_view(), name='queue'),
     url('search/', views.QueryView.as_view(), name='search'),
     url('statistic/', views.StatisticView.as_view(), name='statistic'),
+    url('audio/(?P<id>\d+)', views.AudioView.as_view(), name='audio'),
     url('', views.IndexView.as_view(), name='index'),
 ]

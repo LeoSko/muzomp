@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 import datetime
-import urllib
 from os import path
+from urllib import parse
 
 import librosa
 from django.db import models
@@ -29,7 +29,7 @@ class Audio(models.Model):
     tasks_processed = models.IntegerField(default=0)
 
     def get_duration(self):
-        return datetime.timedelta(seconds=librosa.get_duration(filename=urllib.parse.unquote(self.file.url)))
+        return datetime.timedelta(seconds=librosa.get_duration(filename=parse.unquote(self.file.url)))
 
     def get_filename(self):
         return path.basename(self.file.url)
@@ -69,15 +69,12 @@ class BPM(models.Model):
     id = models.AutoField(primary_key=True)
     value = models.IntegerField(default=-1)
     audio = models.ForeignKey(Audio, on_delete=models.DO_NOTHING)
-    start_time = models.IntegerField()
+    start_time = models.FloatField()
     duration = models.DurationField()
     status = models.IntegerField(default=IN_QUEUE)
 
-    def get_starttime_formatted(self):
+    def start(self):
         return datetime.timedelta(seconds=self.start_time)
 
-    def get_endtime(self):
-        return self.start_time + self.duration.seconds
-
-    def get_endtime_formatted(self):
-        return datetime.timedelta(seconds=self.get_endtime())
+    def end(self):
+        return datetime.timedelta(seconds=self.start_time + self.duration.total_seconds())

@@ -1,1 +1,94 @@
-<p>TODO</p>
+{% extends 'core/base.html' %}
+{% load mathfilters %}
+{% load filters %}
+{% load staticfiles %}
+{% block content %}
+    {% if not a.status == a.PROCESSED %}
+        <div class="alert-info">
+        Audio processing is still in progress.
+        </div>
+    {% endif %}
+    <div class="container">
+        <p class="m-p">File added: {{ a.date_uploaded }}</p>
+        <p class="m-p">File name: {{ a.get_filename|unquote|truncatechars:50 }}</p>
+        <p class="m-p">Total length: {{ a.get_duration|duration:"h:i:s" }}</p>
+        <p class="m-p">BPM</p>
+        {% if bpms %}
+            <div class="container">
+                <canvas id="bpmChart"></canvas>
+            </div>
+            <ul class="list-group">
+                <li class="list-group-item">
+                    <div class="row">
+                        <div class="col col-datetime">Start time</div>
+                        <div class="col col-datetime">End time</div>
+                        <div class="col">Value</div>
+                    </div>
+                </li>
+                {% for bpm in bpms %}
+                <li class="list-group-item">
+                    <div class="row">
+                        <div class="col col-datetime">{{ bpm.start|duration:"h:i:s" }}</div>
+                        <div class="col col-datetime">{{ bpm.end|duration:"h:i:s" }}</div>
+                        <div class="col">{{ bpm.value }}</div>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            Empty!
+        {% endif %}
+    </div>
+{% endblock content %}
+{% block includes %}
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.4.0/Chart.min.js"></script>
+{% endblock includes %}
+{% block scripts %}
+    <script>
+window.chartColors = {
+	red: 'rgb(255, 99, 132)',
+	orange: 'rgb(255, 159, 64)',
+	yellow: 'rgb(255, 205, 86)',
+	green: 'rgb(75, 192, 192)',
+	blue: 'rgb(54, 162, 235)',
+	purple: 'rgb(153, 102, 255)',
+	grey: 'rgb(201, 203, 207)'
+};
+
+var ctx = document.getElementById("bpmChart").getContext('2d');
+var datapoints = [ {% for bpm in bpms %}{{ bpm.value }}{% if forloop.counter != bpms.count %},{% endif %}{% endfor %} ];
+var xpoints = [ {% for bpm in bpms %}'{{ bpm.start.total_seconds|duration:"h:i:s" }}'{% if forloop.counter != bpms.count %},{% endif %}{% endfor %} ];
+var chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: xpoints,
+        datasets: [{
+            label: 'Cubic BPM interpolation (monotone)',
+            data: datapoints,
+            borderColor: window.chartColors.blue,
+            backgroundColor: 'rgba(0, 0, 0, 0)',
+            fill: false,
+            cubicInterpolationMode: 'monotone'
+        }, {
+            label: 'BPM',
+            data: datapoints,
+            borderColor: window.chartColors.red
+        }]
+    },
+    options: {
+        responsive:true,
+        scales: {
+            yAxes: [{
+                ticks: {
+                    beginAtZero: true,
+                    max: 200,
+                    min: 0,
+                    stepSize: 10
+                }
+            }]
+        }
+    }
+});
+    </script>
+{% endblock scripts %}

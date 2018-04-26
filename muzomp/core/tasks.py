@@ -24,16 +24,17 @@ def process_bpm(task_id):
         return SUCCESS_CODE
     bpm.status = BPM.PROCESSING
     bpm.save()
-    y, sr = librosa.load(unquote(bpm.a.file.url), offset=bpm.start_time)
+    y, sr = librosa.load(unquote(bpm.audio.file.url), offset=bpm.start_time, duration=bpm.duration.total_seconds())
     onset_env = librosa.onset.onset_strength(y, sr=sr)
     tempo = librosa.beat.tempo(onset_envelope=onset_env, sr=sr)
     bpm.value = np.round(tempo, 1)
-    bpm.a.increase_processed_tasks()
     bpm.status = BPM.PROCESSED
     bpm.save()
+    bpm.audio.increase_processed_tasks()
+    bpm.audio.save()
 
-    if bpm.a.status == Audio.PROCESSED:
-        merge.delay(bpm.a.audio_id, 'BPM')
+    if Audio.objects.get(id=bpm.audio.id).status == Audio.PROCESSED:
+        merge.delay(bpm.audio.id, 'BPM')
     return SUCCESS_CODE
 
 
