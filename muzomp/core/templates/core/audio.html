@@ -4,18 +4,20 @@
 {% load staticfiles %}
 {% block content %}
     {% if not a.status == a.PROCESSED %}
-        <div class="alert-info">
-        Audio processing is still in progress.
+        <div class="container">
+            <div class="alert alert-info">
+            Audio processing is still in progress.
+            </div>
         </div>
     {% endif %}
     <div class="container">
         <p class="m-p">File added: {{ a.date_uploaded }}</p>
         <p class="m-p">File name: {{ a.get_filename|unquote|truncatechars:50 }}</p>
         <p class="m-p">Total length: {{ a.get_duration|duration:"h:i:s" }}</p>
-        <p class="m-p">BPM</p>
+        <p class="m-p">BPM (average={% if a.avg_bpm == -1 %}unknown{% else %}{{ a.avg_bpm }}{% endif %})</p>
         {% if bpms %}
             <div class="container">
-                <canvas id="bpmChart"></canvas>
+                <div id="bpmChart"></div>
             </div>
             <ul class="list-group">
                 <li class="list-group-item">
@@ -30,7 +32,7 @@
                     <div class="row">
                         <div class="col col-datetime">{{ bpm.start|duration:"h:i:s" }}</div>
                         <div class="col col-datetime">{{ bpm.end|duration:"h:i:s" }}</div>
-                        <div class="col">{{ bpm.value }}</div>
+                        <div class="col col-bpm">{{ bpm.value }}</div>
                     </div>
                 </li>
                 {% endfor %}
@@ -42,7 +44,7 @@
 {% endblock content %}
 {% block includes %}
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.4.0/Chart.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 {% endblock includes %}
 {% block scripts %}
     <script>
@@ -56,39 +58,32 @@ window.chartColors = {
 	grey: 'rgb(201, 203, 207)'
 };
 
-var ctx = document.getElementById("bpmChart").getContext('2d');
-var datapoints = [ {% for bpm in bpms %}{{ bpm.value }}{% if forloop.counter != bpms.count %},{% endif %}{% endfor %} ];
-var xpoints = [ {% for bpm in bpms %}'{{ bpm.start.total_seconds|duration:"h:i:s" }}'{% if forloop.counter != bpms.count %},{% endif %}{% endfor %} ];
-var chart = new Chart(ctx, {
-    type: 'line',
-    data: {
-        labels: xpoints,
-        datasets: [{
-            label: 'Cubic BPM interpolation (monotone)',
-            data: datapoints,
-            borderColor: window.chartColors.blue,
-            backgroundColor: 'rgba(0, 0, 0, 0)',
-            fill: false,
-            cubicInterpolationMode: 'monotone'
-        }, {
-            label: 'BPM',
-            data: datapoints,
-            borderColor: window.chartColors.red
-        }]
-    },
-    options: {
-        responsive:true,
-        scales: {
-            yAxes: [{
-                ticks: {
-                    beginAtZero: true,
-                    max: 200,
-                    min: 0,
-                    stepSize: 10
-                }
-            }]
-        }
-    }
-});
+var ypoints = [ {% for bpm in bpms %}{{ bpm.value }}{% if forloop.counter != bpms.count %}, {% else %}, {{ bpm.value }}{% endif %}{% endfor %} ];
+var xlabels = [ {% for bpm in bpms %}'{{ bpm.start.total_seconds|duration:"h:i:s" }}'{% if forloop.counter != bpms.count %}, {% else %}, '{{ bpm.end.total_seconds|duration:"h:i:s" }}'{% endif %}{% endfor %} ];
+var xpoints = [ {% for bpm in bpms %}{{ bpm.start.total_seconds|floatformat:"0" }}{% if forloop.counter != bpms.count %}, {% else %}, {{ bpm.end.total_seconds|floatformat:"0" }}{% endif %}{% endfor %} ];
+
+var trace1 = {
+  x: xpoints,
+  y: ypoints,
+  mode: 'lines+markers',
+  type: 'scatter',
+  name: 'BPM',
+  line: {shape: 'hv'},
+  text: xlabels
+};
+
+var data = [ trace1 ];
+
+var layout = {
+  xaxis: {
+    range: [ 0, {{ a.get_duration.total_seconds|floatformat:"0" }} ]
+  },
+  yaxis: {
+    range: [ 0, 200 ]
+  },
+  title: 'BPMs of {{ a.artist}} - {{ a.title  }}'
+};
+
+Plotly.newPlot('bpmChart', data, layout);
     </script>
 {% endblock scripts %}

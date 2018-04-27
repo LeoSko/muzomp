@@ -9,8 +9,8 @@ from .models import Audio
 class AudioTests(TestCase):
     def test_125_bpm_if_fast(self):
         a = Audio(bpm=125)
-        self.assertIs(a.isFast(), True)
+        self.assertIs(a.is_fast(), True)
 
     def test_110_bpm_not_fast(self):
         a = Audio(bpm=110)
-        self.assertIs(a.isFast(), False)
+        self.assertIs(a.is_fast(), False)

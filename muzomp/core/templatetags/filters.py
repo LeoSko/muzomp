@@ -40,3 +40,4 @@ def duration(td, string_format):
         res = res.replace("s", str(seconds))
 
     return res.replace("S", str(total_seconds))
+

@@ -1,13 +1,14 @@
 # Create your tasks here
 from __future__ import absolute_import, unicode_literals
 
+import datetime
 from urllib.parse import unquote
 
 import librosa
 import numpy as np
-from celery.decorators import task
+from celery.task import task
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import transaction
+from django.db import OperationalError
 
 from .models import Audio, BPM
 
@@ -17,7 +18,7 @@ UNKNOWN_PARAMETER_ERROR_CODE = -1
 WRONG_ARRAY_LENGTH = -2
 
 
-@task(name='core.tasks.process_bpm')
+@task(name='core.tasks.process_bpm', autoretry_for=(OperationalError,))
 def process_bpm(task_id):
     bpm = BPM.objects.get(id=task_id)
     if bpm.status == BPM.PROCESSED:
@@ -38,7 +39,7 @@ def process_bpm(task_id):
     return SUCCESS_CODE
 
 
-@task(name='core.tasks.merge')
+@task(name='core.tasks.merge', autoretry_for=(OperationalError,))
 def merge(audio_id, parameter):
     try:
         a = Audio.objects.get(id=audio_id)
@@ -49,7 +50,8 @@ def merge(audio_id, parameter):
         if bpms.count() < 2:
             return WRONG_ARRAY_LENGTH
         new_bpms = [bpms[0]]
-        for old_bpm in bpms:
+        for i in range(1, len(bpms)):
+            old_bpm = bpms[i]
             if old_bpm.value == new_bpms[-1].value:
                 new_bpms[-1].duration += old_bpm.duration
             else:
@@ -59,3 +61,17 @@ def merge(audio_id, parameter):
             new_bpm.save()
         return SUCCESS_CODE
     return UNKNOWN_PARAMETER_ERROR_CODE
+
+
+@task(name='core.tasks.count_avg_bpm')
+def count_avg_bpm(audio_id):
+    try:
+        a = Audio.objects.get(id=audio_id)
+    except ObjectDoesNotExist:
+        return OBJECT_DOES_NOT_EXIST_ERROR_CODE
+    values = BPM.objects.filter(audio=a).order_by('start_time').values_list('value', flat=True)
+    weights = list(map(datetime.timedelta.total_seconds, BPM.objects.filter(audio=a).order_by('start_time')
+                  .values_list('duration', flat=True)))
+    a.avg_bpm = sum(x * y for x, y in zip(weights, values)) / sum(weights)
+    a.save()
+    return SUCCESS_CODE

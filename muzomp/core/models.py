@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
+
 import datetime
 from os import path
 from urllib import parse
@@ -25,8 +26,9 @@ class Audio(models.Model):
     title = models.CharField(max_length=200, default='Unknown')
     date_uploaded = models.DateTimeField('Date uploaded', default=timezone.now)
     status = models.IntegerField(default=IN_QUEUE)
-    tasks_scheduled = models.IntegerField(default=-1)
     tasks_processed = models.IntegerField(default=0)
+    tasks_scheduled = models.IntegerField(default=-1)
+    avg_bpm = models.IntegerField(default=-1)
 
     def get_duration(self):
         return datetime.timedelta(seconds=librosa.get_duration(filename=parse.unquote(self.file.url)))
@@ -37,12 +39,22 @@ class Audio(models.Model):
     def update_status(self):
         if self.tasks_scheduled == self.tasks_processed:
             self.status = Audio.PROCESSED
+            from core import tasks
+            tasks.count_avg_bpm.delay(self.id)
         elif self.tasks_processed > 0:
             self.status = Audio.PROCESSING
 
     def increase_processed_tasks(self):
         self.tasks_processed = self.tasks_processed + 1
         self.update_status()
+
+    def __str__(self):
+        return "Audio(id={0}, file={1}, artist={2}, title={3}, date_uploaded={4}, status={5}, tasks={6}/{7})" \
+            .format(self.id, self.file, self.artist, self.title, self.date_uploaded, Audio.STATUS_CHOICES[self.status],
+                    self.tasks_processed, self.tasks_scheduled)
+
+    def is_fast(self):
+        return self.avg_bpm > 120
 
 
 class BPM(models.Model):
@@ -51,11 +63,11 @@ class BPM(models.Model):
 
     Parameters
     -------------
-    id : django.models.AutoField
+    BPM.id : django.models.AutoField
         Auto-incremented id
 
-    value : int > 0
-        Actual value of object
+    BPM.value : int > 0
+        Actual calculated BPM value
     """
     IN_QUEUE = 0
     PROCESSING = 1
@@ -78,3 +90,7 @@ class BPM(models.Model):
 
     def end(self):
         return datetime.timedelta(seconds=self.start_time + self.duration.total_seconds())
+
+    def __str__(self):
+        return "BPM(id={0}, value={1}, audio={2}, start_time={3}, duration={4}, status={5})" \
+            .format(self.id, self.value, self.audio, self.start_time, self.duration, BPM.STATUS_CHOICES[self.status])

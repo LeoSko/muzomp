@@ -1,9 +1,8 @@
-import rabbitpy as rabbitpy
+from datetime import timedelta
+
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.views import generic
-
-from datetime import timedelta
 
 from core import tasks
 from core.statistics import Stats
@@ -48,24 +47,26 @@ class QueryView(generic.TemplateView):
 class UploaderView(generic.TemplateView):
     template_name = 'core/upload.html'
 
-    def post(self, request, *args, **kwargs):
+    @staticmethod
+    def post(request):
         if request.FILES:
-            a = Audio.objects.create(file=request.FILES['audio'])
-            a.save()
-            duration = a.get_duration().total_seconds()
-            subtime = 15.0
-            start_time = 0
-            a.tasks_scheduled = duration // subtime
-            a.save()
-            while start_time < duration - subtime * 2:
-                bpm = BPM.objects.create(audio=a, start_time=start_time, duration=timedelta(seconds=subtime))
+            for file in request.FILES.getlist('audio'):
+                a = Audio.objects.create(file=file)
+                a.save()
+                duration = a.get_duration().total_seconds()
+                subtime = 15.0
+                start_time = 0
+                a.tasks_scheduled = duration // subtime
+                a.save()
+                while start_time < duration - subtime * 2:
+                    bpm = BPM.objects.create(audio=a, start_time=start_time, duration=timedelta(seconds=subtime))
+                    bpm.save()
+                    tasks.process_bpm.delay(bpm.id)
+                    start_time = start_time + subtime
+                bpm = BPM.objects.create(audio=a, start_time=start_time,
+                                         duration=timedelta(seconds=duration - (subtime * (a.tasks_scheduled - 1))))
                 bpm.save()
                 tasks.process_bpm.delay(bpm.id)
-                start_time = start_time + subtime
-            bpm = BPM.objects.create(audio=a, start_time=start_time,
-                                     duration=timedelta(seconds=duration - (subtime * (a.tasks_scheduled - 1))))
-            bpm.save()
-            tasks.process_bpm.delay(bpm.id)
             return HttpResponseRedirect(reverse('core:index'))
         else:
             return HttpResponseRedirect(reverse('core:upload'))

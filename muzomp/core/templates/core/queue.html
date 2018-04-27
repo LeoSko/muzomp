@@ -16,7 +16,7 @@
                                 <div class="col col-progress">{{ audio.tasks_processed }} of {{ audio.tasks_scheduled }}</div>
                             </div>
                             <div class="progress">
-                              <div class="progress-bar" role="progressbar" style="width: {{ audio.tasks_processed|div:audio.tasks_scheduled|mul:100|floatformat:"0" }}%" aria-valuenow="{{ audio.tasks_processed|div:audio.tasks_scheduled|mul:100|floatformat:"0" }}" aria-valuemin="0" aria-valuemax="100"></div>
+                              <div class="progress-bar" role="progressbar" style="width: {% widthratio audio.tasks_processed audio.tasks_scheduled 100 %}%" aria-valuenow="{{ audio.tasks_processed|div:audio.tasks_scheduled|mul:100|floatformat:"0" }}" aria-valuemin="0" aria-valuemax="100"></div>
                             </div>
                     </li>
                     {% endfor %}
