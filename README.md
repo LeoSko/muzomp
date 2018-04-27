@@ -7,11 +7,13 @@ This project is focused on fast parallel music processing via django-based web-s
 3. Select muzomp as current target;
 4. Press debug/start.
 ## Requirements
+Versions below may be downgraded, but only for experimental purposes and will not be supported by maintainers.
 * Python >= 3.6
 * Django >= 2.0
-* FFMPEG defined in PATH variable for correct audio decoding
+* Librosa >= 0.6
+* For librosa, FFMPEG defined in PATH variable for correct audio decoding (or any other way to decode, look in [librosa repo](https://github.com/librosa/librosa/issues/219))
 * Celery >= 4.0
-* RabbitMQ >= 3.6
+* Redis >= 4.0
 * Erlang >= 9.2
 * Other stuff from requirements.txt
 ## Authors
