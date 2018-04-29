@@ -71,7 +71,7 @@ def count_avg_bpm(audio_id):
         return OBJECT_DOES_NOT_EXIST_ERROR_CODE
     values = BPM.objects.filter(audio=a).order_by('start_time').values_list('value', flat=True)
     weights = list(map(datetime.timedelta.total_seconds, BPM.objects.filter(audio=a).order_by('start_time')
-                  .values_list('duration', flat=True)))
+                       .values_list('duration', flat=True)))
     a.avg_bpm = sum(x * y for x, y in zip(weights, values)) / sum(weights)
     a.save()
     return SUCCESS_CODE

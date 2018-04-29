@@ -44,9 +44,7 @@ class QueryView(generic.TemplateView):
     template_name = 'core/query.html'
 
 
-class UploaderView(generic.TemplateView):
-    template_name = 'core/upload.html'
-
+class UploadView(generic.View):
     @staticmethod
     def post(request):
         if request.FILES:
@@ -69,7 +67,15 @@ class UploaderView(generic.TemplateView):
                 tasks.process_bpm.delay(bpm.id)
             return HttpResponseRedirect(reverse('core:index'))
         else:
-            return HttpResponseRedirect(reverse('core:upload'))
+            return HttpResponseRedirect(reverse('core:upload_form'))
+
+    @staticmethod
+    def get(request):
+        return HttpResponseRedirect(reverse('core:upload_form'))
+
+
+class UploaderFormView(generic.TemplateView):
+    template_name = 'core/upload.html'
 
 
 class StatisticView(generic.TemplateView):

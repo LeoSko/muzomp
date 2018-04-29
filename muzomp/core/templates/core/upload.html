@@ -1,27 +1,28 @@
 {% extends 'core/base.html' %}
-
+{% load staticfiles %}
 {% block content %}
     <div class="container">
         <div class="row justify-content-center">
-            <form id="uploadForm" method="post" enctype="multipart/form-data" action="">
+            <form id="uploadForm" method="post" enctype="multipart/form-data" action="{% url 'core:upload' %}">
                 {% csrf_token %}
                 <div class="input-group mb-3">
                     <div class="custom-file">
                         <input name="audio" type="file" class="custom-file-input" id="inputFile"
-                               onchange="$('#uploadForm').submit()"
+                               {% comment %}onchange="$('#submitBtn').click()"{% endcomment %}
+                                onchange="$('#submitBtn').click()"
                                accept=".mp3" multiple>
                         <label class="custom-file-label" for="inputFile">Choose file</label>
                     </div>
-                    <button type="submit" hidden>Upload</button>
                 </div>
             </form>
+            <button id="submitBtn" type="submit" hidden>Upload</button>
+        </div>
+        <div class="container p-1">
+            <ul id="uploadProgress" class="list-group">
+            </ul>
         </div>
     </div>
-    {% comment %}<form id="uploadForm" method="post" enctype="multipart/form-data" action="">
-        {% csrf_token %}
-        <label for="file-upload" class="m-custom-file-upload m-blue-button">Select file</label>
-        <input name="audio" id="file-upload" class="hidden" type="file"
-               onchange="setTimeout(function() {document.getElementById('uploadForm').submit()}, 1000)" accept=".mp3"/>
-        <button type="submit" class="hidden">Upload</button>
-    </form>{% endcomment %}
 {% endblock %}
+{% block scripts %}
+    <script src="{% static '/js/upload.js' %}"></script>
+{% endblock scripts %}

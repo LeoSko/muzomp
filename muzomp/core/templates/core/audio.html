@@ -43,7 +43,6 @@
     </div>
 {% endblock content %}
 {% block includes %}
-
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 {% endblock includes %}
 {% block scripts %}
@@ -58,11 +57,11 @@ window.chartColors = {
 	grey: 'rgb(201, 203, 207)'
 };
 
-var ypoints = [ {% for bpm in bpms %}{{ bpm.value }}{% if forloop.counter != bpms.count %}, {% else %}, {{ bpm.value }}{% endif %}{% endfor %} ];
-var xlabels = [ {% for bpm in bpms %}'{{ bpm.start.total_seconds|duration:"h:i:s" }}'{% if forloop.counter != bpms.count %}, {% else %}, '{{ bpm.end.total_seconds|duration:"h:i:s" }}'{% endif %}{% endfor %} ];
-var xpoints = [ {% for bpm in bpms %}{{ bpm.start.total_seconds|floatformat:"0" }}{% if forloop.counter != bpms.count %}, {% else %}, {{ bpm.end.total_seconds|floatformat:"0" }}{% endif %}{% endfor %} ];
+let ypoints = [ {% for bpm in bpms %}{{ bpm.value }}{% if forloop.counter != bpms.count %}, {% else %}, {{ bpm.value }}{% endif %}{% endfor %} ];
+let xlabels = [ {% for bpm in bpms %}'{{ bpm.start.total_seconds|duration:"h:i:s" }}'{% if forloop.counter != bpms.count %}, {% else %}, '{{ bpm.end.total_seconds|duration:"h:i:s" }}'{% endif %}{% endfor %} ];
+let xpoints = [ {% for bpm in bpms %}{{ bpm.start.total_seconds|floatformat:"0" }}{% if forloop.counter != bpms.count %}, {% else %}, {{ bpm.end.total_seconds|floatformat:"0" }}{% endif %}{% endfor %} ];
 
-var trace1 = {
+let trace1 = {
   x: xpoints,
   y: ypoints,
   mode: 'lines+markers',
@@ -72,9 +71,9 @@ var trace1 = {
   text: xlabels
 };
 
-var data = [ trace1 ];
+let data = [ trace1 ];
 
-var layout = {
+let layout = {
   xaxis: {
     range: [ 0, {{ a.get_duration.total_seconds|floatformat:"0" }} ]
   },
