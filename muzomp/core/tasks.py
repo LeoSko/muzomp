@@ -16,11 +16,15 @@ SUCCESS_CODE = 0
 OBJECT_DOES_NOT_EXIST_ERROR_CODE = -9
 UNKNOWN_PARAMETER_ERROR_CODE = -1
 WRONG_ARRAY_LENGTH = -2
+UNKNOWN_ERROR = -3
 
 
 @task(name='core.tasks.process_bpm', autoretry_for=(OperationalError,))
 def process_bpm(task_id):
-    bpm = BPM.objects.get(id=task_id)
+    try:
+        bpm = BPM.objects.get(id=task_id)
+    except ObjectDoesNotExist:
+        return OBJECT_DOES_NOT_EXIST_ERROR_CODE
     if bpm.status == BPM.PROCESSED:
         return SUCCESS_CODE
     bpm.status = BPM.PROCESSING
@@ -49,16 +53,18 @@ def merge(audio_id, parameter):
         bpms = BPM.objects.filter(audio=a).order_by('start_time')
         if bpms.count() < 2:
             return WRONG_ARRAY_LENGTH
-        new_bpms = [bpms[0]]
+        t_bpm = bpms[0]
+        res_bpm = []
         for i in range(1, len(bpms)):
             old_bpm = bpms[i]
-            if old_bpm.value == new_bpms[-1].value:
-                new_bpms[-1].duration += old_bpm.duration
+            if old_bpm.value == t_bpm.value:
+                t_bpm.duration += old_bpm.duration
             else:
-                new_bpms.append(old_bpm)
-            old_bpm.delete()
-        for new_bpm in new_bpms:
-            new_bpm.save()
+                res_bpm.append(t_bpm)
+                t_bpm = old_bpm
+        res_bpm.append(t_bpm)
+        bpms.delete()
+        BPM.objects.bulk_create(res_bpm)
         return SUCCESS_CODE
     return UNKNOWN_PARAMETER_ERROR_CODE
 
