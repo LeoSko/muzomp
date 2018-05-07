@@ -29,9 +29,9 @@
         <div class="collapse navbar-collapse" id="navbar">
             <ul class="navbar-nav mx-auto">
                 <li class="nav-item">
-                    <form class="form-inline" method="GET" action="{% url 'core:search' %}">
-                        <input id="searchbar" class="form-control mr-2" name="q" type="search" placeholder="BPM from 80 to 90" aria-label="Search">
-                        <button class="btn btn-primary" type="submit">Search</button>
+                    <form class="form-inline" method="GET" action="{% url 'core:search' '' %}">
+                        <input id="searchbar" onchange="validate()" class="form-control mr-2" name="q" type="search" placeholder="BPM from 80 to 90" aria-label="Search" required>
+                        <button id="search_button" class="btn btn-primary" type="submit">Search</button>
                     </form>
                 </li>
             </ul>
@@ -55,5 +55,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/js-cookie@2/src/js.cookie.min.js"></script>
+    <script src="{% static 'js/validate.js' %}"></script>
     {% block scripts %}{% endblock scripts %}
 </html>

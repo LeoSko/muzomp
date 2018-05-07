@@ -1,10 +1,14 @@
+# Django itself
 django
 django-mathfilters
+# Librosa stuff
 librosa
 numpy
-psutil
-psycopg2
+# Celery
 celery
 redis
+# Utils
+psutil
+psycopg2
 # For running celery in Windows you will need eventlet, thanks to https://github.com/celery/celery/issues/4178
 eventlet

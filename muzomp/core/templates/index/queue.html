@@ -1,0 +1,22 @@
+{% load mathfilters %}
+{% load filters %}
+{% load staticfiles %}
+<p class="m-p">Queue:</p>
+<ul id="queue_ul" class="list-group">
+{% if queue %}
+    {% for q in queue %}
+    <li class="list-group-item list-group-item-action animated bounceInLeft bounceOutRight">
+        <div class="row">
+            <div class="col col-datetime">{{ q.date_uploaded|date:"Y-m-d H:i:s"  }}</div>
+            <div class="col">{{ q.get_filename|unquote|truncatechars:50 }}</div>
+        </div>
+    </li>
+    {% endfor %}
+{% else %}
+    <li class="list-group-item list-group-item-action">
+        <div class="row">
+            <div class="col">Empty!</div>
+        </div>
+    </li>
+{% endif %}
+</ul>

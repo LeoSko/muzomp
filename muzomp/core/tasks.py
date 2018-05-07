@@ -82,14 +82,15 @@ def count_avg_bpm(audio_id):
     a.save()
     return SUCCESS_CODE
 
+
 @task(name='core.tasks.get_principal_components')
-def get_principal_components(files_list, varianceShare):
-    A = np.zeros(shape=(13696, len(files_list)), dtype=float)
+def get_principal_components(files_list, variance_share):
+    a = np.zeros(shape=(13696, len(files_list)), dtype=float)
     nf = 0
     for file in files_list:
         y, sr = librosa.load('music1/' + file, offset=15, duration=10)
-        D = librosa.stft(y, n_fft=2048)
-        X = np.abs(D)
+        d = librosa.stft(y, n_fft=2048)
+        x = np.abs(d)
         i = 0
         j = 0
         k = 0
@@ -98,34 +99,34 @@ def get_principal_components(files_list, varianceShare):
                 s = 0
                 for ii in range(i, i + 7):
                     for jj in range(j, j + 3):
-                        s += X[ii][jj]
-                A[k][nf] = s / 32
+                        s += x[ii][jj]
+                a[k][nf] = s / 32
                 k = k + 1
                 j = j + 4
             j = 0
             i = i + 8
         nf = nf + 1
-    A.resize(8000, len(files_list))
-    means = np.mean(A, 1)
-    stds = np.std(A, 1)
-    for i in range(len(means)):
-        A[i, :] = A[i, :] - means[i]
-        A[i, :] = A[i, :] / stds[i]
-    R = np.cov(A)
-    D, V = np.linalg.eigh(R)
+    a.resize(8000, len(files_list))
+    mean = np.mean(a, 1)
+    std = np.std(a, 1)
+    for i in range(len(mean)):
+        a[i, :] = a[i, :] - mean[i]
+        a[i, :] = a[i, :] / std[i]
+    r = np.cov(a)
+    d, v = np.linalg.eigh(r)
 
-    componentNumber = 0  # число главных компонент
-    sumsum = 0
-    for k in range(len(D)):
-        sumsum = sumsum + D[8000 - 1 - k]
+    component_number = 0  # число главных компонент
+    sum = 0
+    for k in range(len(d)):
+        sum = sum + d[8000 - 1 - k]
     semisum = 0
-    for k in range(len(D)):
-        semisum = semisum + D[8000 - 1 - k]
-        if semisum / sumsum >= varianceShare:
-            componentNumber = k + 1
+    for k in range(len(d)):
+        semisum = semisum + d[8000 - 1 - k]
+        if semisum / sum >= variance_share:
+            component_number = k + 1
             break
-    principalVectors = np.zeros((8000, componentNumber))
-    for k in range(componentNumber):
-        principalVectors[:, k] = V[:, 8000 - 1 - k]
-    PC = np.dot(A.T, principalVectors)
-    return PC
+    principal_vectors = np.zeros((8000, component_number))
+    for k in range(component_number):
+        principal_vectors[:, k] = v[:, 8000 - 1 - k]
+    pc = np.dot(a.T, principal_vectors)
+    return pc

@@ -20,8 +20,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'mathfilters'
+    'mathfilters',
 ]
+
+ASGI_APPLICATION = "muzomp.routing.application"
 
 CELERY_IMPORTS = (
     'core.tasks',
