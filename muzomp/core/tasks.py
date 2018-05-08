@@ -17,6 +17,25 @@ OBJECT_DOES_NOT_EXIST_ERROR_CODE = -9
 UNKNOWN_PARAMETER_ERROR_CODE = -1
 WRONG_ARRAY_LENGTH = -2
 UNKNOWN_ERROR = -3
+NUMBER_OF_SEGMENTS = 9804
+
+def binary_search(val, start, end, arr):
+    if start == end:
+        if arr['distance'][start] > val:
+            return start
+        else:
+            return start + 1
+
+    if start > end:
+        return start
+
+    mid = int((start + end) / 2)
+    if arr['distance'][mid] < val:
+        return binary_search(val, mid + 1, end,arr)
+    elif arr['distance'][mid] > val:
+        return binary_search(val, start, mid - 1,arr)
+    else:
+        return mid
 
 
 @task(name='core.tasks.process_bpm', autoretry_for=(OperationalError,))
@@ -82,51 +101,94 @@ def count_avg_bpm(audio_id):
     a.save()
     return SUCCESS_CODE
 
-
 @task(name='core.tasks.get_principal_components')
-def get_principal_components(files_list, variance_share):
-    a = np.zeros(shape=(13696, len(files_list)), dtype=float)
+def get_principal_components(files_list, varianceShare):
+    A = np.zeros(shape=(NUMBER_OF_SEGMENTS, len(files_list)), dtype=float)
     nf = 0
     for file in files_list:
         y, sr = librosa.load('music1/' + file, offset=15, duration=10)
-        d = librosa.stft(y, n_fft=2048)
-        x = np.abs(d)
+        D = librosa.stft(y, n_fft=2048)
+        X = np.abs(D)
         i = 0
         j = 0
         k = 0
-        while i < 1024:
-            while j < 428:
+        while i < 1026:
+            while j < 430:
                 s = 0
-                for ii in range(i, i + 7):
-                    for jj in range(j, j + 3):
-                        s += x[ii][jj]
-                a[k][nf] = s / 32
+                for ii in range(i, i + 8):
+                    for jj in range(j, j + 4):
+                        s += X[ii][jj]
+                A[k][nf] = s / 45
                 k = k + 1
-                j = j + 4
+                j = j + 5
             j = 0
-            i = i + 8
+            i = i + 9
         nf = nf + 1
-    a.resize(8000, len(files_list))
-    mean = np.mean(a, 1)
-    std = np.std(a, 1)
-    for i in range(len(mean)):
-        a[i, :] = a[i, :] - mean[i]
-        a[i, :] = a[i, :] / std[i]
-    r = np.cov(a)
-    d, v = np.linalg.eigh(r)
+    means = np.mean(A, 1)
+    stds = np.std(A, 1)
+    for i in range(len(means)):
+        A[i, :] = A[i, :] - means[i]
+        A[i, :] = A[i, :] / stds[i]
+    R = np.cov(A)
+    D, V = np.linalg.eigh(R)
 
-    component_number = 0  # число главных компонент
-    sum = 0
-    for k in range(len(d)):
-        sum = sum + d[8000 - 1 - k]
-    semisum = 0
-    for k in range(len(d)):
-        semisum = semisum + d[8000 - 1 - k]
-        if semisum / sum >= variance_share:
-            component_number = k + 1
+    componentNumber = 0  # number of principal components
+    D = D[::-1]
+    cumsum = np.cumsum(D)
+    sum = np.sum(D)
+    for k in range(len(cumsum)):
+        if cumsum[k] / sum >= varianceShare:
+            componentNumber = k + 1
             break
-    principal_vectors = np.zeros((8000, component_number))
-    for k in range(component_number):
-        principal_vectors[:, k] = v[:, 8000 - 1 - k]
-    pc = np.dot(a.T, principal_vectors)
-    return pc
+    principalVectors = np.zeros((NUMBER_OF_SEGMENTS, componentNumber))
+    for k in range(componentNumber):
+        principalVectors[:, k] = V[:, NUMBER_OF_SEGMENTS - 1 - k]
+    PC = np.dot(A.T, principalVectors)
+    return PC
+
+@task(name='core.tasks.calc_melody_components')
+def calc_melody_components(principalVectors, means, stds, filename, offset):
+    y, sr = librosa.load(filename, offset=offset, duration=10)
+    D = librosa.stft(y, n_fft=2048)
+    X = np.abs(D)
+    A = np.zeros(shape=(NUMBER_OF_SEGMENTS,), dtype=float)
+    i = 0
+    j = 0
+    k = 0
+    while i < 1026:
+        while j < 430:
+            s = 0
+            for ii in range(i, i + 8):
+                for jj in range(j, j + 4):
+                    s += X[ii][jj]
+            A[k] = s / 45
+            k = k + 1
+            j = j + 5
+        j = 0
+        i = i + 9
+    for i in range(len(means)):
+        A[i] = A[i] - means[i]
+        A[i] = A[i] / stds[i]
+    newComponents = np.dot(A, principalVectors)
+
+    return newComponents
+
+@task(name='core.tasks.get_closest_melodies')
+def get_closest_melodies(melodyComponents, PC, closestCount):
+    componentNumber = melodyComponents.shape[1]
+    numOfMelodiesInDB = PC.shape[0]
+    dtype = np.dtype([('number', int), ('distance', float)])
+    numAndDistance = np.array([], dtype=dtype)
+    for i in range(numOfMelodiesInDB):
+        distance = 0
+        for j in range(componentNumber):
+            distance = distance + (float(PC[i][j]) - melodyComponents[j]) * (
+            float(PC[i][j]) - melodyComponents[j])
+
+        numAndDistance = np.insert(numAndDistance, binary_search(distance, 0, len(numAndDistance) - 1, numAndDistance),
+                                   (i, distance))
+
+    #then we should get first closestCount elememts of numAndDistance
+
+    return SUCCESS_CODE
+
