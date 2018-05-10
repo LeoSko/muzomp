@@ -1,7 +1,8 @@
-function refreshable(from, to) {
+function refreshable(from, to, refreshRate = 5000) {
     return {
         from: '#' + from,
-        to: to
+        to: to,
+        refreshRate: refreshRate
     };
 }
 
@@ -17,5 +18,5 @@ for (let i = 0; i < function_list.length; i++) {
     $(div_id).load(url);
     setInterval(function () {
         $(div_id).load(url);
-    }, 15000);
+    }, function_list[i].refreshRate);
 }

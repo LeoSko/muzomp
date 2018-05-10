@@ -1,6 +1,7 @@
+import json
 from datetime import timedelta
 
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, HttpResponse
 from django.urls import reverse
 from django.views import generic
 
@@ -49,9 +50,41 @@ class AudioView(generic.TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['a'] = Audio.objects.get(id=kwargs['id'])
+        context['a'] = Audio.objects.get(id=kwargs['audio_id'])
         context['bpms'] = BPM.objects.filter(audio=context['a'])
         return context
+
+
+class AudioDataView(generic.View):
+    @staticmethod
+    def get(request, audio_id):
+        a = Audio.objects.get(id=audio_id)
+        response_data = {'artist': a.artist, 'title': a.title, 'duration': a.get_duration().total_seconds(),
+                         'finished': (a.status == Audio.PROCESSED)}
+        return HttpResponse(json.dumps(response_data), content_type="application/json")
+
+
+class AudioBPMView(generic.TemplateView):
+    template_name = 'audio/bpm.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['bpms'] = BPM.objects.filter(audio__id=kwargs['audio_id'])
+        return context
+
+
+class AudioBPMDataView(generic.View):
+    @staticmethod
+    def get(request, audio_id):
+        response_data = {}
+        bpms = BPM.objects.filter(audio__id=audio_id).order_by('start_time')
+        response_data['bpm_values'] = list(bpms.values_list('value', flat=True))
+        response_data['bpm_values'].append(bpms.last().value)
+        response_data['time_values'] = list(bpms.values_list('start_time', flat=True))
+        response_data['time_values'].append(bpms.last().start_time + bpms.last().duration.total_seconds())
+        response_data['time_labels'] = response_data['time_values']
+        response_data['finished'] = len(bpms.exclude(status=BPM.PROCESSED)) == 0
+        return HttpResponse(json.dumps(response_data), content_type="application/json")
 
 
 class QueueView(generic.TemplateView):

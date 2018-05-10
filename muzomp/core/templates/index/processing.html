@@ -6,7 +6,7 @@
 {% if processing %}
     {% for p in processing %}
     <li class="list-group-item list-group-item-action list-group-item-primary">
-        <a href="audio/{{ p.id }}">
+        <a href="/audio/{{ p.id }}">
             <div class="row">
                 <div class="col col-datetime">{{ p.date_uploaded|date:"Y-m-d H:i:s"  }}</div>
                 <div class="col col-filename">{{ p.get_filename|unquote|truncatechars:50 }}</div>

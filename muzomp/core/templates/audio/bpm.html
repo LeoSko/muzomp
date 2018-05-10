@@ -1,0 +1,24 @@
+{% load mathfilters %}
+{% load filters %}
+{% if bpms %}
+    <ul class="list-group">
+        <li class="list-group-item">
+            <div class="row">
+                <div class="col col-datetime">Start time</div>
+                <div class="col col-datetime">End time</div>
+                <div class="col">Value</div>
+            </div>
+        </li>
+        {% for bpm in bpms %}
+        <li class="list-group-item">
+            <div class="row">
+                <div class="col col-datetime">{{ bpm.start|duration:"h:i:s" }}</div>
+                <div class="col col-datetime">{{ bpm.end|duration:"h:i:s" }}</div>
+                <div class="col col-bpm">{{ bpm.value }}</div>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+{% else %}
+    Empty!
+{% endif %}
