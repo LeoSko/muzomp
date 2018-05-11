@@ -165,7 +165,7 @@ def calc_melody_components(principal_vectors, means, stds, filename, offset):
 def get_closest_melodies(melody_components, pc, closest_count):
     component_number = melody_components.shape[1]
     num_of_melodies_in_db = pc.shape[0]
-    dtype = np.dtype([('number', int), ('distance', float)])
+    dtype = np.dtype([('distance', float), ('number', int)])
     num_and_distance = np.array([], dtype=dtype)
     for i in range(num_of_melodies_in_db):
         distance = 0
@@ -174,8 +174,8 @@ def get_closest_melodies(melody_components, pc, closest_count):
                     float(pc[i][j]) - melody_components[j])
 
         num_and_distance = np.insert(num_and_distance,
-                                     bisect(num_and_distance, distance),
-                                     (i, distance))
+                                     num_and_distance.searcsorted(np.asarray((distance, i),dtype=dt)),
+                                     (distance, i))
 
     print(num_and_distance[:closest_count])
     return SUCCESS_CODE
