@@ -174,7 +174,7 @@ def get_closest_melodies(melody_components, pc, closest_count):
                     float(pc[i][j]) - melody_components[j])
 
         num_and_distance = np.insert(num_and_distance,
-                                     num_and_distance.searcsorted(np.asarray((distance, i),dtype=dt)),
+                                     num_and_distance.searcsorted(np.asarray((distance, i),dtype=dtype)),
                                      (distance, i))
 
     print(num_and_distance[:closest_count])
