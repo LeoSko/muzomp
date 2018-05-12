@@ -3,9 +3,7 @@ from __future__ import unicode_literals
 
 import datetime
 from os import path
-from urllib import parse
 
-import librosa
 from django.db import models
 from django.utils import timezone
 
@@ -14,39 +12,32 @@ class Audio(models.Model):
     IN_QUEUE = 0
     PROCESSING = 1
     PROCESSED = 2
+    SCHEDULED = 3
     STATUS_CHOICES = (
+        (SCHEDULED, 'Scheduled'),
         (IN_QUEUE, 'In queue'),
         (PROCESSING, 'Processing'),
         (PROCESSED, 'Processed'),
     )
+    DEFAULT_ARTIST = 'Unknown'
+    DEFAULT_TITLE = 'Unknown'
+    DEFAULT_HASH = 'N/A'
 
     id = models.AutoField(primary_key=True)
     file = models.FileField(upload_to='storage/')
-    artist = models.CharField(max_length=200, default='Unknown')
-    title = models.CharField(max_length=200, default='Unknown')
+    file_hash = models.CharField(max_length=32, default=DEFAULT_HASH)
+    artist = models.CharField(max_length=200, default=DEFAULT_ARTIST)
+    title = models.CharField(max_length=200, default=DEFAULT_TITLE)
+    duration = models.FloatField(null=True)
+    filename = models.CharField(max_length=255, default='')
     date_uploaded = models.DateTimeField('Date uploaded', default=timezone.now)
-    status = models.IntegerField(default=IN_QUEUE)
+    status = models.IntegerField(default=SCHEDULED)
     tasks_processed = models.IntegerField(default=0)
     tasks_scheduled = models.IntegerField(default=-1)
     avg_bpm = models.IntegerField(default=-1)
 
-    def get_duration(self):
-        return datetime.timedelta(seconds=librosa.get_duration(filename=parse.unquote(self.file.url)))
-
     def get_filename(self):
         return path.basename(self.file.url)
-
-    def update_status(self):
-        if self.tasks_scheduled == self.tasks_processed:
-            self.status = Audio.PROCESSED
-            from core import tasks
-            tasks.count_avg_bpm.delay(self.id)
-        elif self.tasks_processed > 0:
-            self.status = Audio.PROCESSING
-
-    def increase_processed_tasks(self):
-        self.tasks_processed = self.tasks_processed + 1
-        self.update_status()
 
     def __str__(self):
         return "Audio(id={0}, file={1}, artist={2}, title={3}, date_uploaded={4}, status={5}, tasks={6}/{7})" \
@@ -82,14 +73,17 @@ class BPM(models.Model):
     value = models.IntegerField(default=-1)
     audio = models.ForeignKey(Audio, on_delete=models.DO_NOTHING)
     start_time = models.FloatField()
-    duration = models.DurationField()
+    duration = models.FloatField()
     status = models.IntegerField(default=IN_QUEUE)
+    processing_start = models.DateTimeField(null=True)
+    processing_end = models.DateTimeField(null=True)
+    task_id = models.IntegerField(default=0)
 
     def start(self):
         return datetime.timedelta(seconds=self.start_time)
 
     def end(self):
-        return datetime.timedelta(seconds=self.start_time + self.duration.total_seconds())
+        return datetime.timedelta(seconds=self.start_time + self.duration)
 
     def __str__(self):
         return "BPM(id={0}, value={1}, audio={2}, start_time={3}, duration={4}, status={5})" \

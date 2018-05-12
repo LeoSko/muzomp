@@ -60,7 +60,7 @@
                     <li class="list-group-item list-group-item-action list-group-item-primary">
                         <div class="row">
                             <div class="col col-datetime">{{ p.date_uploaded|date:"Y-m-d H:i:s"  }}</div>
-                            <div class="col col-filename">{{ p.get_filename|unquote|truncatechars:50 }}</div>
+                            <div class="col col-filename">{{ p.filename|truncatechars:50 }}</div>
                             <div class="col col-progress">{{ p.tasks_processed }} of {{ p.tasks_scheduled }}</div>
                         </div>
                     </li>

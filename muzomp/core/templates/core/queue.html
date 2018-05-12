@@ -12,7 +12,7 @@
                     <li class="list-group-item list-group-item-action list-group-item-success">
                         <div class="row">
                             <div class="col col-datetime">{{ audio.date_uploaded|date:"Y-m-d H:i:s" }}</div>
-                            <div class="col">{{ audio.get_filename|unquote|truncatechars:50 }}</div>
+                            <div class="col">{{ audio.filename|truncatechars:50 }}</div>
                                 <div class="col col-progress">{{ audio.tasks_processed }} of {{ audio.tasks_scheduled }}</div>
                         </div>
                         <div class="progress">
@@ -33,7 +33,7 @@
                     <li class="list-group-item list-group-item-action list-group-item-success">
                         <div class="row">
                             <div class="col col-datetime">{{ bpm.audio.date_uploaded|date:"Y-m-d H:i:s" }}</div>
-                            <div class="col">{{ bpm.audio.get_filename|unquote|truncatechars:50 }}</div>
+                            <div class="col">{{ bpm.audio.filename|truncatechars:50 }}</div>
                             <div class="col col-time pull-right">{{ bpm.start|duration:"h:i:s" }}</div>
                             <div class="col col-time pull-right">{{ bpm.end|duration:"h:i:s" }}</div>
                         </div>

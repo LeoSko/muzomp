@@ -8,6 +8,9 @@ numpy
 celery
 redis
 # Utils
+eyed3
+python-magic
+python-libmagic
 psutil
 psycopg2
 # For running celery in Windows you will need eventlet, thanks to https://github.com/celery/celery/issues/4178

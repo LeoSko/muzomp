@@ -3,18 +3,16 @@
 {% load filters %}
 {% load staticfiles %}
 {% block content %}
-    {% if not a.status == a.PROCESSED %}
-        <div class="container">
-            <div class="alert alert-info">
-            Audio processing is still in progress.
-            </div>
+    <div id="not_processed_alert" class="container" hidden>
+        <div class="alert alert-info">
+        Audio processing is still in progress.
         </div>
-    {% endif %}
+    </div>
     <div class="container">
         <p class="m-p">File added: {{ a.date_uploaded }}</p>
-        <p class="m-p">File name: {{ a.get_filename|unquote|truncatechars:50 }}</p>
-        <p class="m-p">Total length: {{ a.get_duration|duration:"h:i:s" }}</p>
-        <p class="m-p">BPM (average={% if a.avg_bpm == -1 %}unknown{% else %}{{ a.avg_bpm }}{% endif %})</p>
+        <p class="m-p">File name: {{ a.filename|truncatechars:50 }}</p>
+        <p class="m-p">Total length: {{ a.duration|duration:"h:i:s" }}</p>
+        <p class="m-p">BPM average=<span id="bpm_average"></span></p>
         <div class="container">
             <div id="bpmChart"></div>
             <div id="bpm"></div>

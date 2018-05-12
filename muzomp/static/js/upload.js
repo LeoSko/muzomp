@@ -1,13 +1,15 @@
-function li(filename, id, totalFileSizeHuman, totalFileSize) {
+function li(filename, id, totalFileSizeHuman, totalFileSize, link) {
     return `<li class="list-group-item list-group-item-action list-group-item-primary">
-                <div class="row">
-                    <div class="col col-filename">${filename}</div>
-                    <div id="filesize-${id}" class="col col-filesize" value="${totalFileSize}">0</div>
-                    <div class="col col-filesize">${totalFileSizeHuman}</div>
-                </div>
-                <div class="progress">
-                    <div id="progress-${id}" class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
-                </div>
+                <a id="link-${id}" href="${link}">
+                    <div class="row">
+                        <div class="col col-filename">${filename}</div>
+                        <div id="filesize-${id}" class="col col-filesize" value="${totalFileSize}">0</div>
+                        <div class="col col-filesize">${totalFileSizeHuman}</div>
+                    </div>
+                    <div class="progress">
+                        <div id="progress-${id}" class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                </a>
             </li>`;
 }
 
@@ -70,7 +72,8 @@ $('#submitBtn').on('click', function() {
                     return myXhr;
                 },
 
-                success: function() {
+                success: function (msg) {
+                    $(`#link-${id}`).attr('href', msg.link[0]);
                     $(document).dequeue('upload');
                     let progress = $(`#progress-${id}`);
                     progress.parent().parent().removeClass("list-group-item-primary");

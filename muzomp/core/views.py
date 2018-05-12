@@ -1,9 +1,15 @@
+import hashlib
 import json
-from datetime import timedelta
+from os import path
+from urllib import parse
+from urllib.parse import unquote
 
+import librosa
+from django.core.files.uploadedfile import InMemoryUploadedFile, TemporaryUploadedFile
 from django.http import HttpResponseRedirect, HttpResponse
 from django.urls import reverse
 from django.views import generic
+from eyed3 import id3
 
 from core import tasks
 from core.statistics import Stats
@@ -23,7 +29,8 @@ class IndexQueueView(generic.TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['queue'] = Audio.objects.filter(status=Audio.IN_QUEUE).order_by('date_uploaded')[:10]
+        statuses = [Audio.IN_QUEUE, Audio.SCHEDULED]
+        context['queue'] = Audio.objects.filter(status__in=statuses).order_by('date_uploaded')[:10]
         return context
 
 
@@ -59,8 +66,8 @@ class AudioDataView(generic.View):
     @staticmethod
     def get(request, audio_id):
         a = Audio.objects.get(id=audio_id)
-        response_data = {'artist': a.artist, 'title': a.title, 'duration': a.get_duration().total_seconds(),
-                         'finished': (a.status == Audio.PROCESSED)}
+        response_data = {'artist': a.artist, 'title': a.title, 'duration': a.duration,
+                         'finished': (a.status == Audio.PROCESSED), 'avg_bpm': a.avg_bpm}
         return HttpResponse(json.dumps(response_data), content_type="application/json")
 
 
@@ -78,12 +85,13 @@ class AudioBPMDataView(generic.View):
     def get(request, audio_id):
         response_data = {}
         bpms = BPM.objects.filter(audio__id=audio_id).order_by('start_time')
-        response_data['bpm_values'] = list(bpms.values_list('value', flat=True))
-        response_data['bpm_values'].append(bpms.last().value)
-        response_data['time_values'] = list(bpms.values_list('start_time', flat=True))
-        response_data['time_values'].append(bpms.last().start_time + bpms.last().duration.total_seconds())
-        response_data['time_labels'] = response_data['time_values']
-        response_data['finished'] = len(bpms.exclude(status=BPM.PROCESSED)) == 0
+        if bpms.count() > 0:
+            response_data['bpm_values'] = list(bpms.values_list('value', flat=True))
+            response_data['bpm_values'].append(bpms.last().value)
+            response_data['time_values'] = list(bpms.values_list('start_time', flat=True))
+            response_data['time_values'].append(bpms.last().start_time + bpms.last().duration)
+            response_data['time_labels'] = response_data['time_values']
+            response_data['finished'] = len(bpms.exclude(status=BPM.PROCESSED)) == 0
         return HttpResponse(json.dumps(response_data), content_type="application/json")
 
 
@@ -103,28 +111,54 @@ class QueryView(generic.TemplateView):
 
 class UploadView(generic.View):
     @staticmethod
-    def post(request):
-        if request.FILES:
-            for file in request.FILES.getlist('audio'):
-                a = Audio.objects.create(file=file)
-                a.save()
-                duration = a.get_duration().total_seconds()
-                subtime = 15.0
-                start_time = 0
-                a.tasks_scheduled = duration // subtime
-                a.save()
-                while start_time < duration - subtime * 2:
-                    bpm = BPM.objects.create(audio=a, start_time=start_time, duration=timedelta(seconds=subtime))
-                    bpm.save()
-                    tasks.process_bpm.delay(bpm.id)
-                    start_time = start_time + subtime
-                bpm = BPM.objects.create(audio=a, start_time=start_time,
-                                         duration=timedelta(seconds=duration - (subtime * (a.tasks_scheduled - 1))))
-                bpm.save()
-                tasks.process_bpm.delay(bpm.id)
-            return HttpResponseRedirect(reverse('core:index'))
+    def get_file_obj(file):
+        if isinstance(file, InMemoryUploadedFile):
+            return file
+        elif isinstance(file, TemporaryUploadedFile):
+            return file.file.file
         else:
-            return HttpResponseRedirect(reverse('core:upload_form'))
+            raise FileNotFoundError("Unknown type of file for hash calculation")
+
+    @staticmethod
+    def hash_file(file, algorithm='md5', buffer_size=8192):
+        h = hashlib.new(algorithm)
+        block = file.read(buffer_size)
+        if not block:
+            return h.digest()
+        h.update(block)
+        return h.hexdigest()
+
+    @staticmethod
+    def post(request):
+        response_data = {}
+        if request.FILES:
+            response_data['link'] = []
+            for file in request.FILES.getlist('audio'):
+                file_hash = UploadView.hash_file(UploadView.get_file_obj(file))
+                check = Audio.objects.filter(file_hash=file_hash)
+                if check.count() > 0:
+                    response_data['link'].append(reverse('core:audio', kwargs={'audio_id': check[0].id}))
+                    continue
+                tag = id3.Tag()
+                tag.parse(file)
+                if tag.artist is None:
+                    tag.artist = Audio.DEFAULT_ARTIST
+                else:
+                    tag.artist = str(tag.artist).encode('cp1252').decode('cp1251')
+                if tag.title is None:
+                    tag.title = Audio.DEFAULT_TITLE
+                else:
+                    tag.title = str(tag.title).encode('cp1252').decode('cp1251')
+                a = Audio.objects.create(file=file, artist=tag.artist, title=tag.title, file_hash=file_hash)
+                a.save()
+                a.duration = librosa.get_duration(filename=parse.unquote(a.file.url))
+                a.filename = unquote(path.basename(a.file.url))
+                a.save()
+                tasks.schedule_audio_tasks.delay(a.id)
+                response_data['link'].append(reverse('core:audio', kwargs={'audio_id': a.id}))
+        else:
+            response_data['error'] = 'No files found in request'
+        return HttpResponse(json.dumps(response_data), content_type="application/json")
 
     @staticmethod
     def get(request):

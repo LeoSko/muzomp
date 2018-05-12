@@ -9,7 +9,7 @@
         <a href="/audio/{{ a.id }}">
             <div class="row">
                 <div class="col col-datetime">{{ a.date_uploaded|date:"Y-m-d H:i:s" }}</div>
-                <div class="col">{{ a.get_filename|unquote|truncatechars:50 }}</div>
+                <div class="col">{{ a.filename|truncatechars:50 }}</div>
                 <div class="col-bpm">{{ a.avg_bpm }}</div>
             </div>
         </a>

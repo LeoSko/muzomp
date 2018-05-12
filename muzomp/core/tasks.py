@@ -1,8 +1,6 @@
 # Create your tasks here
 from __future__ import absolute_import, unicode_literals
 
-import datetime
-from bisect import bisect
 from urllib.parse import unquote
 
 import librosa
@@ -10,6 +8,7 @@ import numpy as np
 from celery.task import task
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import OperationalError
+from django.utils import timezone
 
 from .models import Audio, BPM
 
@@ -19,6 +18,7 @@ UNKNOWN_PARAMETER_ERROR_CODE = -1
 WRONG_ARRAY_LENGTH = -2
 UNKNOWN_ERROR = -3
 NUMBER_OF_SEGMENTS = 9804
+LOST_TASK_TIMEOUT = 60
 
 
 @task(name='core.tasks.process_bpm', autoretry_for=(OperationalError,))
@@ -30,19 +30,40 @@ def process_bpm(task_id):
     if bpm.status == BPM.PROCESSED:
         return SUCCESS_CODE
     bpm.status = BPM.PROCESSING
+    bpm.processing_start = timezone.now()
     bpm.save()
-    y, sr = librosa.load(unquote(bpm.audio.file.url), offset=bpm.start_time, duration=bpm.duration.total_seconds())
+    y, sr = librosa.load(unquote(bpm.audio.file.url), offset=bpm.start_time, duration=bpm.duration)
     onset_env = librosa.onset.onset_strength(y, sr=sr)
     tempo = librosa.beat.tempo(onset_envelope=onset_env, sr=sr)
     bpm.value = np.round(tempo, 1)
     bpm.status = BPM.PROCESSED
+    bpm.processing_end = timezone.now()
     bpm.save()
-    bpm.audio.increase_processed_tasks()
-    bpm.audio.save()
-
-    if Audio.objects.get(id=bpm.audio.id).status == Audio.PROCESSED:
-        merge.delay(bpm.audio.id, 'BPM')
     return SUCCESS_CODE
+
+
+@task(name='core.tasks.schedule_bpm_tasks', autoretry_for=(OperationalError,))
+def schedule_audio_tasks(audio_id):
+    try:
+        a = Audio.objects.get(id=audio_id)
+    except ObjectDoesNotExist:
+        return OBJECT_DOES_NOT_EXIST_ERROR_CODE
+    subtime = 15.0
+    start_time = 0
+    a.tasks_scheduled = a.duration // subtime
+    a.save()
+    while start_time < a.duration - subtime * 2:
+        bpm = BPM.objects.create(audio=a, start_time=start_time, duration=subtime)
+        bpm.save()
+        process_bpm.delay(bpm.id)
+        start_time = start_time + subtime
+    last_duration = a.duration - (subtime * (a.tasks_scheduled - 1))
+    bpm = BPM.objects.create(audio=a, start_time=start_time, duration=last_duration)
+    bpm.save()
+    process_bpm.delay(bpm.id)
+    refresh_audio_status.delay(a.id)
+    a.status = Audio.IN_QUEUE
+    a.save()
 
 
 @task(name='core.tasks.merge', autoretry_for=(OperationalError,))
@@ -71,6 +92,25 @@ def merge(audio_id, parameter):
     return UNKNOWN_PARAMETER_ERROR_CODE
 
 
+@task(name='core.tasks.refresh_audio_status', autoretry_for=(OperationalError,))
+def refresh_audio_status(audio_id):
+    audio = Audio.objects.get(id=audio_id)
+    bpm_tasks = BPM.objects.filter(audio=audio)
+    processed = bpm_tasks.filter(status=BPM.PROCESSED)
+    audio.tasks_scheduled = bpm_tasks.count()
+    audio.tasks_processed = processed.count()
+
+    if audio.tasks_scheduled == audio.tasks_processed:
+        audio.status = Audio.PROCESSED
+        merge.delay(audio_id, 'BPM')
+        count_avg_bpm.delay(audio_id)
+    elif audio.tasks_processed > 0:
+        audio.status = Audio.PROCESSING
+        refresh_audio_status.delay(audio_id)
+
+    audio.save()
+
+
 @task(name='core.tasks.count_avg_bpm')
 def count_avg_bpm(audio_id):
     try:
@@ -78,8 +118,7 @@ def count_avg_bpm(audio_id):
     except ObjectDoesNotExist:
         return OBJECT_DOES_NOT_EXIST_ERROR_CODE
     values = BPM.objects.filter(audio=a).order_by('start_time').values_list('value', flat=True)
-    weights = list(map(datetime.timedelta.total_seconds, BPM.objects.filter(audio=a).order_by('start_time')
-                       .values_list('duration', flat=True)))
+    weights = list(BPM.objects.filter(audio=a).order_by('start_time').values_list('duration', flat=True))
     a.avg_bpm = sum(x * y for x, y in zip(weights, values)) / sum(weights)
     a.save()
     return SUCCESS_CODE
@@ -174,7 +213,7 @@ def get_closest_melodies(melody_components, pc, closest_count):
                     float(pc[i][j]) - melody_components[j])
 
         num_and_distance = np.insert(num_and_distance,
-                                     num_and_distance.searcsorted(np.asarray((distance, i),dtype=dtype)),
+                                     num_and_distance.searchsorted(np.asarray((distance, i), dtype=dtype)),
                                      (distance, i))
 
     print(num_and_distance[:closest_count])

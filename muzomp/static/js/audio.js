@@ -64,8 +64,15 @@ const function_list = [
             },
             title: 'BPMs of ' + data['artist'] + ' - ' + data['title']
         };
+        $('#bpm_average').text((data['avg_bpm'] !== -1)?data['avg_bpm']:"N/A");
+        if (data['finished']) {
+            $('#not_processed_alert').attr('hidden', '');
+        }
+        else {
+            $('#not_processed_alert').removeAttr('hidden');
+        }
         updateChart();
-    })
+    }),
 ];
 
 for (let i = 0; i < function_list.length; i++) {
