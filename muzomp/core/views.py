@@ -13,7 +13,7 @@ from eyed3 import id3
 
 from core import tasks
 from core.statistics import Stats
-from .models import Audio, BPM
+from .models import Audio, BPM, DEFAULT_ARTIST, DEFAULT_TITLE
 
 
 class IndexView(generic.TemplateView):
@@ -142,11 +142,11 @@ class UploadView(generic.View):
                 tag = id3.Tag()
                 tag.parse(file)
                 if tag.artist is None:
-                    tag.artist = Audio.DEFAULT_ARTIST
+                    tag.artist = DEFAULT_ARTIST
                 else:
                     tag.artist = str(tag.artist).encode('cp1252').decode('cp1251')
                 if tag.title is None:
-                    tag.title = Audio.DEFAULT_TITLE
+                    tag.title = DEFAULT_TITLE
                 else:
                     tag.title = str(tag.title).encode('cp1252').decode('cp1251')
                 a = Audio.objects.create(file=file, artist=tag.artist, title=tag.title, file_hash=file_hash)

@@ -1,6 +1,8 @@
 # Create your tasks here
 from __future__ import absolute_import, unicode_literals
 
+import hashlib
+import json
 from urllib.parse import unquote
 
 import librosa
@@ -10,7 +12,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import OperationalError
 from django.utils import timezone
 
-from .models import Audio, BPM
+from .models import Audio, BPM, Global
 
 SUCCESS_CODE = 0
 OBJECT_DOES_NOT_EXIST_ERROR_CODE = -9
@@ -18,11 +20,18 @@ UNKNOWN_PARAMETER_ERROR_CODE = -1
 WRONG_ARRAY_LENGTH = -2
 UNKNOWN_ERROR = -3
 NUMBER_OF_SEGMENTS = 9804
+BPM_SPLIT_DURATION = 15.0
 LOST_TASK_TIMEOUT = 60
 
 
 @task(name='core.tasks.process_bpm', autoretry_for=(OperationalError,))
 def process_bpm(task_id):
+    """
+    Processes BPM task, setting value, status, processing_start and processing_end of core.models.BPM object
+
+    :param task_id: task id
+    :return: OBJECT_DOES_NOT_EXIST_ERROR_CODE if wrong audio_id specified, SUCCESS_CODE otherwise
+    """
     try:
         bpm = BPM.objects.get(id=task_id)
     except ObjectDoesNotExist:
@@ -42,77 +51,124 @@ def process_bpm(task_id):
     return SUCCESS_CODE
 
 
+def split_duration(total_duration, target_duration, split_last=False):
+    """
+    Splits total_duration into parts
+    :param total_duration: total duration of file
+    :param target_duration: target duration of parts
+    :param split_last: if True, last part may be less than others, otherwise it can be more that others
+    :return: array of object with fields
+        - start - start of part
+        - end - end of part
+        - duration - duration of part
+        Note that the last part's duration will probably be not equal target_duration
+    """
+    res = []
+    start = 0
+    pre_end = total_duration - target_duration * 2
+    total_count = total_duration // target_duration
+    if split_last:
+        pre_end = pre_end + target_duration
+    while start < pre_end:
+        res.append({'start': start, 'end': start + target_duration, 'duration': target_duration})
+        start = start + target_duration
+    if split_last:
+        res.append({'start': start, 'end': start + target_duration, 'duration': target_duration})
+        res.append({'start': start + target_duration, 'end': total_duration,
+                    'duration': total_duration - target_duration * (total_count - 1)})
+    else:
+        res.append({'start': start, 'end': total_duration})
+    return res
+
+
 @task(name='core.tasks.schedule_bpm_tasks', autoretry_for=(OperationalError,))
 def schedule_audio_tasks(audio_id):
+    """
+    Schedules all tasks related to specific audio:
+        - refreshing principal components
+        - BPMs
+        - refresh audio status
+    :param audio_id: core.models.Audio.id
+    :return: OBJECT_DOES_NOT_EXIST_ERROR_CODE if wrong audio_id specified, SUCCESS_CODE otherwise
+    """
     try:
         a = Audio.objects.get(id=audio_id)
     except ObjectDoesNotExist:
         return OBJECT_DOES_NOT_EXIST_ERROR_CODE
-    subtime = 15.0
-    start_time = 0
-    a.tasks_scheduled = a.duration // subtime
-    a.save()
-    while start_time < a.duration - subtime * 2:
-        bpm = BPM.objects.create(audio=a, start_time=start_time, duration=subtime)
+    refresh_principal_components.delay(list(Audio.objects.all().values_list('id', flat=True)))
+    intervals = split_duration(a.duration, BPM_SPLIT_DURATION)
+    for interval in intervals:
+        bpm = BPM.objects.create(audio=a, start_time=interval['start'], duration=interval['duration'])
         bpm.save()
         process_bpm.delay(bpm.id)
-        start_time = start_time + subtime
-    last_duration = a.duration - (subtime * (a.tasks_scheduled - 1))
-    bpm = BPM.objects.create(audio=a, start_time=start_time, duration=last_duration)
-    bpm.save()
-    process_bpm.delay(bpm.id)
     refresh_audio_status.delay(a.id)
     a.status = Audio.IN_QUEUE
     a.save()
+    return SUCCESS_CODE
 
 
 @task(name='core.tasks.merge', autoretry_for=(OperationalError,))
-def merge(audio_id, parameter):
+def merge(audio_id):
+    """
+    Merges several BPM objects into one with extended duration
+    :param audio_id: audio id to merge parameter for
+    :return: OBJECT_DOES_NOT_EXIST_ERROR_CODE if wrong audio_id specified, SUCCESS_CODE otherwise
+    """
     try:
         a = Audio.objects.get(id=audio_id)
     except ObjectDoesNotExist:
         return OBJECT_DOES_NOT_EXIST_ERROR_CODE
-    if parameter == 'BPM':
-        bpms = BPM.objects.filter(audio=a).order_by('start_time')
-        if bpms.count() < 2:
-            return WRONG_ARRAY_LENGTH
-        t_bpm = bpms[0]
-        res_bpm = []
-        for i in range(1, len(bpms)):
-            old_bpm = bpms[i]
-            if old_bpm.value == t_bpm.value:
-                t_bpm.duration += old_bpm.duration
-            else:
-                res_bpm.append(t_bpm)
-                t_bpm = old_bpm
-        res_bpm.append(t_bpm)
-        bpms.delete()
-        BPM.objects.bulk_create(res_bpm)
-        return SUCCESS_CODE
-    return UNKNOWN_PARAMETER_ERROR_CODE
+    bpms = BPM.objects.filter(audio=a).order_by('start_time')
+    if bpms.count() < 2:
+        return WRONG_ARRAY_LENGTH
+    t_bpm = bpms[0]
+    res_bpm = []
+    for i in range(1, len(bpms)):
+        old_bpm = bpms[i]
+        if old_bpm.value == t_bpm.value:
+            t_bpm.duration += old_bpm.duration
+        else:
+            res_bpm.append(t_bpm)
+            t_bpm = old_bpm
+    res_bpm.append(t_bpm)
+    bpms.delete()
+    BPM.objects.bulk_create(res_bpm)
+    return SUCCESS_CODE
 
 
 @task(name='core.tasks.refresh_audio_status', autoretry_for=(OperationalError,))
 def refresh_audio_status(audio_id):
-    audio = Audio.objects.get(id=audio_id)
-    bpm_tasks = BPM.objects.filter(audio=audio)
-    processed = bpm_tasks.filter(status=BPM.PROCESSED)
-    audio.tasks_scheduled = bpm_tasks.count()
-    audio.tasks_processed = processed.count()
+    """
+    Refreshes audio status in case of long processing and schedules itself unless audio processing is finished
+    :param audio_id: audio id to refresh status for
+    :return: OBJECT_DOES_NOT_EXIST_ERROR_CODE if wrong audio_id specified, SUCCESS_CODE otherwise
+    """
+    try:
+        audio = Audio.objects.get(id=audio_id)
+    except ObjectDoesNotExist:
+        return OBJECT_DOES_NOT_EXIST_ERROR_CODE
+    audio.tasks_scheduled = BPM.objects.filter(audio=audio).count()
+    audio.tasks_processed = BPM.objects.filter(audio=audio, status=BPM.PROCESSED).count()
 
     if audio.tasks_scheduled == audio.tasks_processed:
         audio.status = Audio.PROCESSED
-        merge.delay(audio_id, 'BPM')
+        merge.delay(audio_id)
         count_avg_bpm.delay(audio_id)
     elif audio.tasks_processed > 0:
         audio.status = Audio.PROCESSING
         refresh_audio_status.delay(audio_id)
 
     audio.save()
+    return SUCCESS_CODE
 
 
 @task(name='core.tasks.count_avg_bpm')
 def count_avg_bpm(audio_id):
+    """
+    Calculates weighted BPM of audio after all parts are processed.
+    :param audio_id: audio id to count avg_bpm for
+    :return: OBJECT_DOES_NOT_EXIST_ERROR_CODE if wrong audio_id specified, SUCCESS_CODE otherwise
+    """
     try:
         a = Audio.objects.get(id=audio_id)
     except ObjectDoesNotExist:
@@ -124,12 +180,19 @@ def count_avg_bpm(audio_id):
     return SUCCESS_CODE
 
 
-@task(name='core.tasks.get_principal_components')
-def get_principal_components(files_list, variance_share):
-    a = np.zeros(shape=(NUMBER_OF_SEGMENTS, len(files_list)), dtype=float)
+@task(name='core.tasks.refresh_principal_components')
+def refresh_principal_components(audio_ids):
+    """
+    Computes principal components matrix for given list of audio ids and stores it in core.models.Global object
+    :param audio_ids: list of audio ids to compute principal components for
+    :return: SUCCESS_CODE
+    """
+    variance_share = 0.95
+    files = list(Audio.objects.filter(id__in=audio_ids).values_list('file', flat=True))
+    a = np.zeros(shape=(NUMBER_OF_SEGMENTS, len(files)), dtype=float)
     nf = 0
-    for file in files_list:
-        y, sr = librosa.load('music1/' + file, offset=15, duration=10)
+    for file in files:
+        y, sr = librosa.load(unquote(file.url), offset=15, duration=10)
         d = librosa.stft(y, n_fft=2048)
         x = np.abs(d)
         i = 0
@@ -155,25 +218,37 @@ def get_principal_components(files_list, variance_share):
     r = np.cov(a)
     d, v = np.linalg.eigh(r)
 
-    component_number = 0  # number of principal components
+    component_count = 0
     d = d[::-1]
     cumsum = np.cumsum(d)
     dsum = np.sum(d)
     for k in range(len(cumsum)):
         if cumsum[k] / dsum >= variance_share:
-            component_number = k + 1
+            component_count = k + 1
             break
-    principal_vectors = np.zeros((NUMBER_OF_SEGMENTS, component_number))
-    for k in range(component_number):
+    principal_vectors = np.zeros((NUMBER_OF_SEGMENTS, component_count))
+    for k in range(component_count):
         principal_vectors[:, k] = v[:, NUMBER_OF_SEGMENTS - 1 - k]
     pc = np.dot(a.T, principal_vectors)
-    print(pc)
-    return pc
+    h = hashlib.new('md5')
+    h.update(audio_ids)
+    Global.objects.create(hash_id=h.hexdigest(), pc=json.dumps(pc)).save()
+    return SUCCESS_CODE
 
 
 @task(name='core.tasks.calc_melody_components')
-def calc_melody_components(principal_vectors, means, stds, filename, offset):
-    y, sr = librosa.load(filename, offset=offset, duration=10)
+def calc_melody_components(principal_vectors, means, stds, audio_id, offset):
+    """
+    Computes components for its' principal vector
+    :param principal_vectors:
+    :param means:
+    :param stds:
+    :param audio_id:
+    :param offset:
+    :return:
+    """
+    audio = Audio.objects.get(id=audio_id)
+    y, sr = librosa.load(unquote(audio.file.url), offset=offset, duration=10)
     d = librosa.stft(y, n_fft=2048)
     x = np.abs(d)
     a = np.zeros(shape=(NUMBER_OF_SEGMENTS,), dtype=float)
@@ -202,6 +277,13 @@ def calc_melody_components(principal_vectors, means, stds, filename, offset):
 
 @task(name='core.tasks.get_closest_melodies')
 def get_closest_melodies(melody_components, pc, closest_count):
+    """
+    Returns closest audios with distance according to its' principal components
+    :param melody_components:
+    :param pc:
+    :param closest_count:
+    :return:
+    """
     component_number = melody_components.shape[1]
     num_of_melodies_in_db = pc.shape[0]
     dtype = np.dtype([('distance', float), ('number', int)])

@@ -7,8 +7,69 @@ from os import path
 from django.db import models
 from django.utils import timezone
 
+DEFAULT_ARTIST = 'Unknown'
+DEFAULT_TITLE = 'Unknown'
+DEFAULT_HASH = 'N/A'
+
+
+class Global(models.Model):
+    """
+    Global (snapshot of statically calculated params for system)
+
+    Parameters
+    -------------
+    hash_id : django.models.CharField
+        Hashed id out of Audio.id set into md5
+
+    pc: django.models.CharField
+        Principal components for this set of audio ids
+    """
+    hash_id = models.CharField(max_length=32, default=DEFAULT_HASH, primary_key=True)
+    pc = models.CharField(max_length=100000)
+
 
 class Audio(models.Model):
+    """
+    Audio
+
+    Parameters
+    -------------
+    id : django.models.AutoField
+        Primary key, announcemented by Django
+
+    file : django.models.FileField
+        File of audio in filesystem, usually it is *.mp3 file
+
+    file_hash : django.models.CharField
+        Hash of file, used to reject same files on upload
+
+    artist : django.models.CharField
+        Artist of audio, taken using ID tags
+
+    title : django.models.CharField
+        Title of audio, taken using ID tags
+
+    duration : django.models.FloatField
+        Duration of audio, taken using librosa method get_duration
+
+    filename : django.models.CharField
+        Filename of audio on filesystem
+
+    date_uploaded : django.models.DateTimeField
+        Date and time of file upload
+
+    status : core.models.Audio.STATUS_CHOICES
+        Status of this audio processing
+
+    tasks_processed : django.models.IntegerField
+        Approximate count of tasks that is for sure already processed for this audio
+
+    tasks_scheduled : django.models.IntegerField
+        Count of tasks that will be processed overall for this audio
+
+    avg_bpm : django.models.IntegerField
+        Average BPM for this track
+    """
     IN_QUEUE = 0
     PROCESSING = 1
     PROCESSED = 2
@@ -19,9 +80,6 @@ class Audio(models.Model):
         (PROCESSING, 'Processing'),
         (PROCESSED, 'Processed'),
     )
-    DEFAULT_ARTIST = 'Unknown'
-    DEFAULT_TITLE = 'Unknown'
-    DEFAULT_HASH = 'N/A'
 
     id = models.AutoField(primary_key=True)
     file = models.FileField(upload_to='storage/')
@@ -54,11 +112,29 @@ class BPM(models.Model):
 
     Parameters
     -------------
-    BPM.id : django.models.AutoField
+    id : django.models.AutoField
         Auto-incremented id
 
-    BPM.value : int > 0
+    audio : django.models.ForeignKey
+        Audio that is connected to this BPM task
+
+    value : django.models.IntegerField
         Actual calculated BPM value
+
+    start_time : django.models.FloatField
+        The beginning of this BPM part of Audio, in seconds
+
+    duration : django.models.FloatField
+        The duration of this BPM part of Audio, in seconds
+
+    status : core.models.BPM.STATUS_CHOICES
+        Status of processing this BPM tasks
+
+    processing_start : django.models.DateTimeField
+        Start of this task processing, used to determine lost tasks
+
+    processing_end : django.models.DateTimeField
+        End of this task processing, used for statistics and optimisations
     """
     IN_QUEUE = 0
     PROCESSING = 1
@@ -70,14 +146,13 @@ class BPM(models.Model):
     )
 
     id = models.AutoField(primary_key=True)
-    value = models.IntegerField(default=-1)
     audio = models.ForeignKey(Audio, on_delete=models.DO_NOTHING)
+    value = models.IntegerField(default=-1)
     start_time = models.FloatField()
     duration = models.FloatField()
     status = models.IntegerField(default=IN_QUEUE)
     processing_start = models.DateTimeField(null=True)
     processing_end = models.DateTimeField(null=True)
-    task_id = models.IntegerField(default=0)
 
     def start(self):
         return datetime.timedelta(seconds=self.start_time)
