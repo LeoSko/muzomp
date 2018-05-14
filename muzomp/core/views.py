@@ -153,6 +153,7 @@ class UploadView(generic.View):
                 a.save()
                 a.duration = librosa.get_duration(filename=parse.unquote(a.file.url))
                 a.filename = unquote(path.basename(a.file.url))
+                a.file_url = unquote(a.file.url)
                 a.save()
                 tasks.schedule_audio_tasks.delay(a.id)
                 response_data['link'].append(reverse('core:audio', kwargs={'audio_id': a.id}))

@@ -12,7 +12,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import OperationalError
 from django.utils import timezone
 
-from .models import Audio, BPM, Global
+from .models import Audio, BPM, State
 
 SUCCESS_CODE = 0
 OBJECT_DOES_NOT_EXIST_ERROR_CODE = -9
@@ -22,6 +22,7 @@ UNKNOWN_ERROR = -3
 NUMBER_OF_SEGMENTS = 9804
 BPM_SPLIT_DURATION = 15.0
 LOST_TASK_TIMEOUT = 60
+HASHING_ALGORITHM = 'md5'
 
 
 @task(name='core.tasks.process_bpm', autoretry_for=(OperationalError,))
@@ -77,7 +78,8 @@ def split_duration(total_duration, target_duration, split_last=False):
         res.append({'start': start + target_duration, 'end': total_duration,
                     'duration': total_duration - target_duration * (total_count - 1)})
     else:
-        res.append({'start': start, 'end': total_duration})
+        res.append({'start': start, 'end': total_duration,
+                    'duration': total_duration - target_duration * (total_count - 2)})
     return res
 
 
@@ -188,11 +190,11 @@ def refresh_principal_components(audio_ids):
     :return: SUCCESS_CODE
     """
     variance_share = 0.95
-    files = list(Audio.objects.filter(id__in=audio_ids).values_list('file', flat=True))
+    files = list(Audio.objects.filter(id__in=audio_ids).values_list('file_url', flat=True))
     a = np.zeros(shape=(NUMBER_OF_SEGMENTS, len(files)), dtype=float)
     nf = 0
     for file in files:
-        y, sr = librosa.load(unquote(file.url), offset=15, duration=10)
+        y, sr = librosa.load(file, offset=15, duration=10)
         d = librosa.stft(y, n_fft=2048)
         x = np.abs(d)
         i = 0
@@ -230,23 +232,39 @@ def refresh_principal_components(audio_ids):
     for k in range(component_count):
         principal_vectors[:, k] = v[:, NUMBER_OF_SEGMENTS - 1 - k]
     pc = np.dot(a.T, principal_vectors)
-    h = hashlib.new('md5')
+    h = hashlib.new(HASHING_ALGORITHM)
     h.update(audio_ids)
-    Global.objects.create(hash_id=h.hexdigest(), pc=json.dumps(pc)).save()
+    State.objects.create(hash_id=h.hexdigest(),
+                         pc=json.dumps(pc),
+                         means=json.dumps(means),
+                         stds=json.dumps(stds)).save()
+    for i in range(pc.shape[0]):
+        Audio.objects.filter(id=audio_ids[i]).update(principal_components=pc[i, :])
+        get_closest_melodies.delay(audio_ids[i])
     return SUCCESS_CODE
 
 
 @task(name='core.tasks.calc_melody_components')
-def calc_melody_components(principal_vectors, means, stds, audio_id, offset):
+def calc_melody_components(audio_id, offset, audio_ids=None):
     """
-    Computes components for its' principal vector
-    :param principal_vectors:
-    :param means:
-    :param stds:
-    :param audio_id:
-    :param offset:
+    Computes components for new audio based on existing state described by audio_ids
+    :param audio_id: audio id to calculate principal vector for
+    :param offset: offset for calculating components in audio
+    :param audio_ids: ids to use for principal components matrix
     :return:
     """
+    if audio_ids is None:
+        state = State.objects.latest('calculated_date')
+    else:
+        try:
+            h = hashlib.new(HASHING_ALGORITHM)
+            h.update(audio_ids)
+            state = State.objects.get(hash_id=h.hexdigest())
+        except ObjectDoesNotExist:
+            return OBJECT_DOES_NOT_EXIST_ERROR_CODE
+    means = state.means
+    stds = state.stds
+    principal_vectors = state.pc
     audio = Audio.objects.get(id=audio_id)
     y, sr = librosa.load(unquote(audio.file.url), offset=offset, duration=10)
     d = librosa.stft(y, n_fft=2048)
@@ -270,20 +288,29 @@ def calc_melody_components(principal_vectors, means, stds, audio_id, offset):
         a[i] = a[i] - means[i]
         a[i] = a[i] / stds[i]
     new_components = np.dot(a, principal_vectors)
-
-    print(new_components)
-    return new_components
+    Audio.objects.filter(id=audio_id).update(principal_components=new_components)
+    return SUCCESS_CODE
 
 
 @task(name='core.tasks.get_closest_melodies')
-def get_closest_melodies(melody_components, pc, closest_count):
+def get_closest_melodies(audio_id, audio_ids=None):
     """
     Returns closest audios with distance according to its' principal components
-    :param melody_components:
-    :param pc:
-    :param closest_count:
+    :param audio_id: target audio to compare others to
+    :param audio_ids: audio ids to compare audio to
     :return:
     """
+    if audio_ids is None:
+        state = State.objects.latest('calculated_date')
+    else:
+        try:
+            h = hashlib.new(HASHING_ALGORITHM)
+            h.update(audio_ids)
+            state = State.objects.get(hash_id=h.hexdigest())
+        except ObjectDoesNotExist:
+            return OBJECT_DOES_NOT_EXIST_ERROR_CODE
+    pc = state.pc
+    melody_components = Audio.objects.get(id=audio_id).principal_components
     component_number = melody_components.shape[1]
     num_of_melodies_in_db = pc.shape[0]
     dtype = np.dtype([('distance', float), ('number', int)])
@@ -298,5 +325,5 @@ def get_closest_melodies(melody_components, pc, closest_count):
                                      num_and_distance.searchsorted(np.asarray((distance, i), dtype=dtype)),
                                      (distance, i))
 
-    print(num_and_distance[:closest_count])
+    Audio.objects.filter(id=audio_id).update(closest_list=json.dumps(num_and_distance))
     return SUCCESS_CODE

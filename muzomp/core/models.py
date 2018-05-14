@@ -12,20 +12,32 @@ DEFAULT_TITLE = 'Unknown'
 DEFAULT_HASH = 'N/A'
 
 
-class Global(models.Model):
+class State(models.Model):
     """
-    Global (snapshot of statically calculated params for system)
+    State (snapshot of statically calculated params for system)
 
     Parameters
     -------------
     hash_id : django.models.CharField
         Hashed id out of Audio.id set into md5
 
-    pc: django.models.CharField
-        Principal components for this set of audio ids
+    pc : django.models.CharField
+        Json-encoded matrix of principal components for this set of audio ids
+
+    calculated_date : django.models.DateTimeField
+        Date of calculated global principal components matrix
+
+    means : django.models.CharField
+        Json-encoded array of means of audio ids
+
+    stds : django.models.CharField
+        Json-encoded array of stds of audio ids
     """
     hash_id = models.CharField(max_length=32, default=DEFAULT_HASH, primary_key=True)
+    calculated_date = models.DateTimeField(default=timezone.now)
     pc = models.CharField(max_length=100000)
+    means = models.CharField(max_length=1000)
+    stds = models.CharField(max_length=1000)
 
 
 class Audio(models.Model):
@@ -69,6 +81,13 @@ class Audio(models.Model):
 
     avg_bpm : django.models.IntegerField
         Average BPM for this track
+
+    principal_component : django.models.CharField
+        Principal components of this Audio.
+        Used to calculate distance between tracks in term of their spectral representation
+
+    closest_list : django.models.CharField
+        Cached list of closest audio to this particular audio
     """
     IN_QUEUE = 0
     PROCESSING = 1
@@ -88,11 +107,14 @@ class Audio(models.Model):
     title = models.CharField(max_length=200, default=DEFAULT_TITLE)
     duration = models.FloatField(null=True)
     filename = models.CharField(max_length=255, default='')
+    file_url = models.CharField(max_length=255, default='')
     date_uploaded = models.DateTimeField('Date uploaded', default=timezone.now)
     status = models.IntegerField(default=SCHEDULED)
     tasks_processed = models.IntegerField(default=0)
     tasks_scheduled = models.IntegerField(default=-1)
     avg_bpm = models.IntegerField(default=-1)
+    principal_components = models.CharField(max_length=2000, null=True)
+    closest_list = models.CharField(max_length=2000, null=True)
 
     def get_filename(self):
         return path.basename(self.file.url)
