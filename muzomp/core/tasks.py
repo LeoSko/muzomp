@@ -20,6 +20,10 @@ UNKNOWN_PARAMETER_ERROR_CODE = -1
 WRONG_ARRAY_LENGTH = -2
 UNKNOWN_ERROR = -3
 NUMBER_OF_SEGMENTS = 9804
+NUMBER_OF_SEGMENTS_IN_TIME = 1026
+NUMBER_OF_SEGMENTS_IN_FREQ = 430
+TIME_STEP = 9
+FREQ_STEP = 5
 BPM_SPLIT_DURATION = 15.0
 LOST_TASK_TIMEOUT = 60
 HASHING_ALGORITHM = 'md5'
@@ -200,17 +204,17 @@ def refresh_principal_components(audio_ids):
         i = 0
         j = 0
         k = 0
-        while i < 1026:
-            while j < 430:
+        while i < NUMBER_OF_SEGMENTS_IN_TIME:
+            while j < NUMBER_OF_SEGMENTS_IN_FREQ:
                 s = 0
-                for ii in range(i, i + 8):
-                    for jj in range(j, j + 4):
+                for ii in range(i, i + TIME_STEP-1):
+                    for jj in range(j, j + FREQ_STEP):
                         s += x[ii][jj]
-                a[k][nf] = s / 45
+                a[k][nf] = s / (TIME_STEP*FREQ_STEP)
                 k = k + 1
-                j = j + 5
+                j = j + FREQ_STEP
             j = 0
-            i = i + 9
+            i = i + TIME_STEP
         nf = nf + 1
     means = np.mean(a, 1)
     stds = np.std(a, 1)
@@ -273,17 +277,17 @@ def calc_melody_components(audio_id, offset, audio_ids=None):
     i = 0
     j = 0
     k = 0
-    while i < 1026:
-        while j < 430:
+    while i < NUMBER_OF_SEGMENTS_IN_TIME:
+        while j < NUMBER_OF_SEGMENTS_IN_FREQ:
             s = 0
-            for ii in range(i, i + 8):
-                for jj in range(j, j + 4):
+            for ii in range(i, i + TIME_STEP-1):
+                for jj in range(j, j + FREQ_STEP-1):
                     s += x[ii][jj]
-            a[k] = s / 45
+            a[k] = s / (TIME_STEP*FREQ_STEP)
             k = k + 1
-            j = j + 5
+            j = j + FREQ_STEP
         j = 0
-        i = i + 9
+        i = i + TIME_STEP
     for i in range(len(means)):
         a[i] = a[i] - means[i]
         a[i] = a[i] / stds[i]
